@@ -9,7 +9,7 @@
 > Compare simulation results in multiple data formats
 </br>
 
-> + pyqt5, pycharm
+> + PySide6, python
 > + MariaDB, HediSQL
 
 ## RUN
@@ -24,7 +24,14 @@ pycharm 패키지 설치
 ## Process
 ***[1단계] 기본 기능 구현***
 
-노션 구현-시뮬레이터-기본기능_설명.pdf 설명 올려두었습니다.
+***[2단계] pyqt5를 PySide6로 수정***
+-코드, ui파일 수정되었습니다.
+
+**to-do-list**
+-시뮬레이션 자체를 해당 코드에 합치기
+-값 받아와서 시뮬레이션 실행 후, 실행 결과(시간) DB에 저장
+-결과 페이지(결과표, 그래프) 구현
+-UI
 
 **사용법 (주의)**
 

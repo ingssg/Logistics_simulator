@@ -1,6 +1,28 @@
 # simulation program
 
+simul.ui 파일 업데이트 하고 실행해주세요
 </br>
+</br>
+**교체할 값(*)**
+</br>
+-line 513,521,531,541,551: **소요시간**
+</br>
+-line 514,523,533,543,553: **소요시간(시간당작업량)**
+</br>
+-line 515,525,535,545,555: **벨트로봇당 작업량**
+</br>
+-line 516,526,536,546,556: **덤프로봇당 작업량**
+</br>
+-line 574: **벨트로봇당 작업량**
+</br>
+-line 575: **덤프로봇당 작업량**
+</br>
+-line 595: **소요시간(시간당 작업량)**
+</br>
+
+</br>
+
+## project
 
 > Run simulation using map files created by previous map design program
 >

@@ -442,8 +442,8 @@
       <rect>
        <x>5</x>
        <y>50</y>
-       <width>950</width>
-       <height>460</height>
+       <width>951</width>
+       <height>421</height>
       </rect>
      </property>
      <property name="tabletTracking">
@@ -487,10 +487,10 @@ color: rgb(255, 255, 255);</string>
     <widget class="QPushButton" name="ok_run">
      <property name="geometry">
       <rect>
-       <x>1390</x>
-       <y>700</y>
-       <width>111</width>
-       <height>41</height>
+       <x>880</x>
+       <y>480</y>
+       <width>75</width>
+       <height>24</height>
       </rect>
      </property>
      <property name="text">
@@ -502,7 +502,7 @@ color: rgb(255, 255, 255);</string>
     <attribute name="title">
      <string>Result</string>
     </attribute>
-    <widget class="QTabWidget" name="resulttable">
+    <widget class="QTabWidget" name="result">
      <property name="geometry">
       <rect>
        <x>5</x>
@@ -526,16 +526,44 @@ color: rgb(255, 255, 255);</string>
       <attribute name="title">
        <string>시간당 작업량 그래프</string>
       </attribute>
+      <widget class="PlotWidget" name="bargraph" native="true">
+       <property name="geometry">
+        <rect>
+         <x>100</x>
+         <y>60</y>
+         <width>741</width>
+         <height>341</height>
+        </rect>
+       </property>
+      </widget>
      </widget>
      <widget class="QWidget" name="tab_6">
       <attribute name="title">
        <string>로봇 타입당 작업량 그래프</string>
       </attribute>
+      <widget class="PlotWidget" name="graph1" native="true">
+       <property name="geometry">
+        <rect>
+         <x>90</x>
+         <y>50</y>
+         <width>741</width>
+         <height>341</height>
+        </rect>
+       </property>
+      </widget>
      </widget>
     </widget>
    </widget>
   </widget>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>PlotWidget</class>
+   <extends>QWidget</extends>
+   <header location="global">pyqtgraph</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>

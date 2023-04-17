@@ -1,19 +1,3 @@
-# This is a sample Python script.
-
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
-
-
-# def print_hi(name):
-# Use a breakpoint in the code line below to debug your script.
-# print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
-
-
-# Press the green button in the gutter to run the script.
-# if __name__ == '__main__':
-#    print_hi('PyCharm')*/
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
 import os
 import sys
 import random
@@ -23,35 +7,21 @@ from PySide6.QtGui import Qt
 from PySide6.QtUiTools import loadUiType
 from PySide6.QtWidgets import QMainWindow, QDialog, QWidget, QFileDialog, QTableWidget, QVBoxLayout, QGridLayout, \
     QPushButton, QTableWidgetItem, QApplication, QLabel, QLineEdit, QTabWidget
-
-#from PyQt5.QtWidgets import *
-#from PyQt5 import uic
-#from PyQt5.QtCore import pyqtSlot, Qt
-#from PyQt5.QtGui import *
-#from PyQt5.QtCore import pyqtSlot, Qt
-#from PyQt5.QtWidgets import *
-#from PyQt5.QtGui import *
-#from PyQt5.QtCore import QFileInfo
 import random
-
-# import xlsxwriter
-
 import openpyxl
-#from PyQt5.uic.properties import QtGui
-
 import pymysql
 from pymysql.constants import CLIENT
+from simulation_window import SimulationWindow
+# import xlsxwriter
 
-conn = None
-cur = None
-
-conn = pymysql.connect(host='127.0.0.1', port=3306, user='root', password='1290', db='lghpdb', charset='utf8',
+conn = pymysql.connect(host='127.0.0.1', port=3306, user='root', password='root', db='lghpdb', charset='utf8',
                        client_flag=CLIENT.MULTI_STATEMENTS, autocommit=True)
 cur = conn.cursor()
 
 
 def resource_path(relative_path):
-    base_path = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+    base_path = getattr(sys, "_MEIPASS", os.path.dirname(
+        os.path.abspath(__file__)))
     return os.path.join(base_path, relative_path)
 
 
@@ -96,9 +66,14 @@ class secondwindow(QDialog, QWidget, form_secondwindow):
         self.show()
         # 탭활용해 화면전환 없음
 
+        # park
+        self.oktemp.clicked.connect(self.showView)
+        self.windows = []
+
         ###   overview  tab ###
         # overview-1.map 파일 미리보기
-        file = QFileDialog.getOpenFileName(self, '', '', 'xlsx파일 (*.xlsx);; All File(*)')  # !!저장파일 타입 정해지면, 확장자에 추가
+        file = QFileDialog.getOpenFileName(
+            self, '', '', 'xlsx파일 (*.xlsx);; All File(*)')  # !!저장파일 타입 정해지면, 확장자에 추가
         global filename  # 선언, 할당 분리
         filename = file[0]
         load_xlsx = openpyxl.load_workbook(file[0], data_only=True)
@@ -154,8 +129,10 @@ class secondwindow(QDialog, QWidget, form_secondwindow):
                     self.map.item(i - 1, j - 1).setText("d")
                     self.map.item(i - 1, j - 1).setForeground(Qt.darkGray)
 
-        self.ok.clicked.connect(self.btn_ok_overview)  # overview-3.확인 버튼 클릭시, 프로젝트 정보 db저장
-        self.ok_run.clicked.connect(self.btn_ok_run)  # run. 확인 버튼클릭시, result탭 이동, 해당 버튼 지금은 없음
+        # overview-3.확인 버튼 클릭시, 프로젝트 정보 db저장
+        self.ok.clicked.connect(self.btn_ok_overview)
+        # run. 확인 버튼클릭시, result탭 이동, 해당 버튼 지금은 없음
+        self.ok_run.clicked.connect(self.btn_ok_run)
 
         # overview-2.속성별 색상 정보 보여주기
         # DB-2)속성별 색상 정보 db에서 가져와서 보여주기 (현재 임의로 지정)
@@ -292,7 +269,13 @@ class secondwindow(QDialog, QWidget, form_secondwindow):
         # 기능-3) 마침 버튼 추가
         ### result end ###
 
+    def showView(self):
+        newwin = SimulationWindow(self.timetemp)
+        self.windows.append(newwin)
+        newwin.show()
+
     # overview-3.확인 버튼 클릭시, 프로젝트정보 db입력 & run탭으로 이동
+
     def btn_ok_overview(self):
         # DB-3) 입력된 프로젝트정보 db에 저장
         global projectid
@@ -303,12 +286,13 @@ class secondwindow(QDialog, QWidget, form_secondwindow):
         cur.execute("SELECT Project_ID FROM project WHERE project.running = 1")
         pid = cur.fetchone()
         sql = "CALL updateProject(%s, %s, %s, %s, %s);"
-        cur.execute(sql, [pid[0], projectid, distributor, customer, centername])
+        cur.execute(sql, [pid[0], projectid,
+                    distributor, customer, centername])
 
         # 탭 이동
         cur_index = self.tabWidget.currentIndex()
         self.tabWidget.setCurrentIndex(cur_index + 1)
-        #if cur_index < len(self.tabWidget) - 1:
+        # if cur_index < len(self.tabWidget) - 1:
         #    self.tabWidget.setCurrentIndex(cur_index + 1)
 
     # run-1.시뮬레이션 추가 버튼 클릭시, 시뮬레이션 탭 추가
@@ -498,7 +482,7 @@ class secondwindow(QDialog, QWidget, form_secondwindow):
     def btn_ok_run(self):
         # 탭 이동
         cur_index = self.tabWidget.currentIndex()
-        ##조건문 없앨지..
+        # 조건문 없앨지..
         if cur_index < len(self.tabWidget) - 1:
             self.tabWidget.setCurrentIndex(cur_index + 1)
 

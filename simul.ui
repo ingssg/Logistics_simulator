@@ -188,6 +188,32 @@
       <string>Center Name</string>
      </property>
     </widget>
+    <widget class="QLabel" name="timetemp">
+     <property name="geometry">
+      <rect>
+       <x>790</x>
+       <y>440</y>
+       <width>111</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Center Name</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="oktemp">
+     <property name="geometry">
+      <rect>
+       <x>790</x>
+       <y>480</y>
+       <width>91</width>
+       <height>31</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>temp</string>
+     </property>
+    </widget>
     <widget class="QPushButton" name="ok">
      <property name="geometry">
       <rect>

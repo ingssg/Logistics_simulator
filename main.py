@@ -1,23 +1,6 @@
-# This is a sample Python script.
-
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
-
-
-# def print_hi(name):
-# Use a breakpoint in the code line below to debug your script.
-# print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
-
-
-# Press the green button in the gutter to run the script.
-# if __name__ == '__main__':
-#    print_hi('PyCharm')*/
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
 import os
 import sys
 import random
-
 import pyqtgraph
 from PySide6 import *
 from PySide6.QtCore import QFileInfo
@@ -29,16 +12,15 @@ import random
 import openpyxl
 import pymysql
 from pymysql.constants import CLIENT
-
-conn = None
-cur = None
+from simulation_window import SimulationWindow
 
 conn = pymysql.connect(host='127.0.0.1', port=3306, user='root', password='1290', db='lghpdb', charset='utf8',
                        client_flag=CLIENT.MULTI_STATEMENTS, autocommit=True)
 cur = conn.cursor()
 
 def resource_path(relative_path):
-    base_path = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+    base_path = getattr(sys, "_MEIPASS", os.path.dirname(
+        os.path.abspath(__file__)))
     return os.path.join(base_path, relative_path)
 
 
@@ -53,6 +35,7 @@ form_secondwindow = loadUiType(form_second)[0]
 #form_third = resource_path('view.ui')
 #form_thirdwindow = uic.loadUiType(form_third)[0]
 '''
+
 
 # 1.homePage.ui
 class WindowClass(QMainWindow, form_class):
@@ -86,9 +69,14 @@ class secondwindow(QDialog, QWidget, form_secondwindow):
         self.show()
         # 탭활용해 화면전환 없음
 
+        # park
+        self.oktemp.clicked.connect(self.showView)
+        self.windows = []
+
         ###   overview  tab ###
         # overview-1.map 파일 미리보기
-        file = QFileDialog.getOpenFileName(self, '', '', 'xlsx파일 (*.xlsx);; All File(*)')  # !!저장파일 타입 정해지면, 확장자에 추가
+        file = QFileDialog.getOpenFileName(
+            self, '', '', 'xlsx파일 (*.xlsx);; All File(*)')  # !!저장파일 타입 정해지면, 확장자에 추가
         global filename  # 선언, 할당 분리
         filename = file[0]
         load_xlsx = openpyxl.load_workbook(file[0], data_only=True)
@@ -281,7 +269,13 @@ class secondwindow(QDialog, QWidget, form_secondwindow):
         #결과-1) 결과표(tab_4), 시간당 작업량 그래프(tab_5), 로봇타입당 작업량 그래프(tab_6): btn_ok_run 함수
         ### result end ###
 
+    def showView(self):
+        newwin = SimulationWindow(self.timetemp)
+        self.windows.append(newwin)
+        newwin.show()
+
     # overview-3.확인 버튼 클릭시, 프로젝트정보 db입력 & run탭으로 이동
+
     def btn_ok_overview(self):
         global projectid
         projectid = str(self.projectid.text())
@@ -296,7 +290,7 @@ class secondwindow(QDialog, QWidget, form_secondwindow):
         # 탭 이동
         cur_index = self.tabWidget.currentIndex()
         self.tabWidget.setCurrentIndex(cur_index + 1)
-        #if cur_index < len(self.tabWidget) - 1:
+        # if cur_index < len(self.tabWidget) - 1:
         #    self.tabWidget.setCurrentIndex(cur_index + 1)
 
     # run-1.시뮬레이션 추가 버튼 클릭시, 시뮬레이션 탭 추가
@@ -737,6 +731,8 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     myWindow = WindowClass()
     myWindow.show()
+
     app.exec()
 cur.execute("CALL deleteProject(%s)", [projectid])
+
 conn.close()

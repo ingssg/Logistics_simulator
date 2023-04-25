@@ -31,47 +31,101 @@ WDUR = 850
 DEAD_THRESHOLD = 7
 
 
-class Robot(QGraphicsPixmapItem):
+class Robot(QGraphicsObject):
     _registry: list[Robot] = []
 
-    def __init__(self,  size: int, robotNum: int, position: NodePos, type: int):
-        self._registry.append(self)
+    missionFinished = Signal(int, int, NodePos)
+    conveyed = Signal(int)
 
-        self.robotType = type
-        if type == 0:
+    def __init__(self, size: int, rNum: int, rType: int, position: NodePos):
+        super().__init__()
+
+        self.painter = QPainter()
+        self.size = size
+        if rType == 0:
             self.pixmap_default = QPixmap(ROBOT_EMPTY).scaled(size, size)
-            self.pixmap_box = QPixmap(ROBOT_GAS).scaled(100, 100)
+            self.pixmap_box = QPixmap(ROBOT_GAS).scaled(size, size)
         else:
             self.pixmap_default = QPixmap(ROBOT_ANOTHER).scaled(size, size)
             self.pixmap_box = QPixmap(ROBOT_MINERAL).scaled(size, size)
-        super().__init__(self.pixmap_default)
+        self.pixmap_current = self.pixmap_default
 
         self.setPos(position.toViewPos().x, position.toViewPos().y)
-        self.setTransformOriginPoint(size/2, size/2)
+        self.setTransformOriginPoint(50, 50)
         self.setRotation(position.degree())
 
-        self.signalObj = SignalInterface()
-        self.robotNum = robotNum
-        self.power = 100
+        self.robotType = rType
+        self.robotNum = rNum
 
+        self.power = 100
+        self.stopped = False
         self.box = 0
         self.sequence = 0
         self.route = [position]
-        self.priority = robotNum
+        self.priority = rNum
 
-        self.wait = False
         self.deadlockedCounter = 0
-
         # detect deadlock
         # self.wait : int
         # and count wait ??
 
+        self._registry.append(self)
+
+    def boundingRect(self):
+        return QRectF(0, 0, self.size, self.size)
+
+    def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget):
+        painter.drawPixmap(QPointF(0, 0), self.pixmap_current,
+                           self.boundingRect())
+
     def dumpPixmap(self, box: int):
         if box != 0:
-            self.setPixmap(self.pixmap_box)
+            self.pixmap_current = self.pixmap_box
         else:
-            self.setPixmap(self.pixmap_default)
+            self.pixmap_current = self.pixmap_default
 
+    def rotateOperation(self, degree: int, duration: int):
+        anim = QVariantAnimation(self)
+        currRot = int(self.rotation())
+        anim.setStartValue(currRot)
+        anim.setEndValue(currRot+degree)
+        anim.setDuration(duration)
+        anim.setEasingCurve(QEasingCurve.Linear)
+        anim.valueChanged.connect(self.setRotation)
+        anim.finished.connect(self.doNextOperation)
+        anim.start(QAbstractAnimation.DeleteWhenStopped)
+
+    def moveOperation(self, destination: QPoint, duration: int):
+        self.deadlockedCounter = 0
+
+        anim = QVariantAnimation(self)
+        anim.setStartValue(QPoint(int(self.pos().x()), int(self.pos().y())))
+        anim.setEndValue(destination)
+        anim.setDuration(duration)
+        anim.setEasingCurve(QEasingCurve.Linear)
+        anim.valueChanged.connect(self.setPos)
+        anim.finished.connect(self.doNextOperation)
+        anim.start(QAbstractAnimation.DeleteWhenStopped)
+
+    def dumpOperation(self, duration: int):
+        self.stopped = True
+        self.box = 0
+        self.dumpPixmap(self.box)
+        # QTimer.singleShot(duration, self.doNextOperation)
+        self.timer = QTimer(self)
+        self.timer.setSingleShot(True)
+        self.timer.start(duration)
+
+    def waitOperation(self, duration: int):
+        self.stopped = True
+        self.deadlockedCounter += 1
+        # QTimer.singleShot(duration, self.doNextOperation)
+        self.timer = QTimer(self)
+        self.timer.setSingleShot(True)
+        self.timer.start(duration)
+
+    # i think this should be changed
+    # receiveCommand(self, dest:nodepos)
     def assignMission(self, route: list[NodePos], box: int = 0):
         self.sequence = 0
         self.route = route
@@ -82,6 +136,14 @@ class Robot(QGraphicsPixmapItem):
 
         self.doNextOperation()
 
+    def finishMission(self):
+        if self.box:
+            self.dumpOperation(750)
+            self.conveyed.emit(self.robotType)
+        else:
+            self.missionFinished.emit(
+                self.robotNum, self.robotType, self.route[len(self.route)-1])
+
     '''
     function split
     operationposwhenarrived
@@ -90,7 +152,7 @@ class Robot(QGraphicsPixmapItem):
 
     def currOperationPosWait(self) -> NodePos:
         # seq is not accumulated
-        if self.wait:
+        if self.stopped:
             return self.route[self.sequence]
 
         if self.sequence+1 == len(self.route):
@@ -98,7 +160,7 @@ class Robot(QGraphicsPixmapItem):
         return self.route[self.sequence]
 
     def currRobotPosWait(self):
-        if self.sequence == 0 or self.wait:
+        if self.sequence == 0 or self.stopped:
             return self.route[self.sequence]
         return self.route[self.sequence-1]
 
@@ -115,7 +177,7 @@ class Robot(QGraphicsPixmapItem):
             selfPos = self.route[self.sequence].point().toTuple()
             for r in self._registry:
                 neighborPos = r.route[r.sequence].point().toTuple()
-                if r.wait:
+                if r.stopped:
                     if neighborPos == (selfPos[0], selfPos[1]-1) or neighborPos == (selfPos[0], selfPos[1]+1) or neighborPos == (selfPos[0]-1, selfPos[1]) or neighborPos == (selfPos[0]+1, selfPos[1]):
                         bots.append(r)
 
@@ -132,7 +194,7 @@ class Robot(QGraphicsPixmapItem):
                                 1].degree()-self.route[self.sequence].degree()
 
         if degreeDiff != 0:
-            self.wait = False
+            self.stopped = False
             self.sequence += 1
             self.rotateOperation(degreeDiff, 750)
         else:
@@ -168,7 +230,7 @@ class Robot(QGraphicsPixmapItem):
             # self is finished operation just right now!
             # self.seq is not accumulated!
 
-            if not r.wait and self_op_dest.point() == opOperPos.point():
+            if not r.stopped and self_op_dest.point() == opOperPos.point():
                 print("op")
                 self.waitOperation(WDUR)
                 return
@@ -201,97 +263,8 @@ class Robot(QGraphicsPixmapItem):
                     self.waitOperation(WDUR)
                     return
 
-        self.wait = False
+        self.stopped = False
         self.sequence += 1
         self.moveOperation(
             self.route[self.sequence].toViewPos().point(), DUR)
         return
-
-    def finishMission(self):
-        if self.box:
-            self.dumpOperation(750)
-        else:
-            self.signalObj.missionFinished.emit(
-                self.robotNum, self.robotType, self.route[len(self.route)-1])
-
-    def rotateOperation(self, degree: int, duration: int):
-        anim = QVariantAnimation(self.signalObj)
-        currRot = int(self.rotation())
-        anim.setStartValue(currRot)
-        anim.setEndValue(currRot+degree)
-        anim.setDuration(duration)
-        anim.setEasingCurve(QEasingCurve.Linear)
-        anim.valueChanged.connect(self.setRotation)
-        anim.finished.connect(self.doNextOperation)
-        anim.start(QAbstractAnimation.DeleteWhenStopped)
-
-    def moveOperation(self, destination: QPoint, duration: int):
-        self.deadlockedCounter = 0
-
-        anim = QVariantAnimation(self.signalObj)
-        anim.setStartValue(QPoint(int(self.pos().x()), int(self.pos().y())))
-        anim.setEndValue(destination)
-        anim.setDuration(duration)
-        anim.setEasingCurve(QEasingCurve.Linear)
-        anim.valueChanged.connect(self.setPos)
-        anim.finished.connect(self.doNextOperation)
-        anim.start(QAbstractAnimation.DeleteWhenStopped)
-
-    def dumpOperation(self, duration: int):
-        self.wait = True
-        self.box = 0
-        self.dumpPixmap(self.box)
-        QTimer.singleShot(duration, self.doNextOperation)
-
-    def waitOperation(self, duration: int):
-        self.wait = True
-        self.deadlockedCounter += 1
-        print(self.robotNum, "wait", self.route)
-        print(self.robotNum, "deadlock", self.deadlockedCounter)
-        QTimer.singleShot(duration, self.doNextOperation)
-
-
-class SignalInterface(QObject):
-    missionFinished = Signal(int, int, NodePos)
-    dumped = Signal()
-
-    # todo : connect count function in simulation_window
-
-    def __init__(self) -> None:
-        super().__init__()
-
-
-class Robot2(QGraphicsObject):
-    def __init__(self) -> None:
-        super().__init__()
-        self.painter = QPainter()
-        self.pixmapDefault = QPixmap(ROBOT_ANOTHER).scaled(100, 100)
-        self.setPos(400, 400)
-        self.setTransformOriginPoint(50, 50)
-
-    def boundingRect(self):
-        return QRectF(0, 0, 100, 100)
-
-    def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget) -> None:
-        print(self.pos(), self.boundingRect())
-        painter.drawPixmap(QPointF(0, 0), self.pixmapDefault,
-                           self.boundingRect())
-
-    def animation(self):
-        anim = QVariantAnimation(self)
-        anim.setStartValue(self.pos())
-        anim.setEndValue(QPointF(0, 0))
-        anim.setDuration(4000)
-        anim.setEasingCurve(QEasingCurve.Linear)
-        anim.valueChanged.connect(self.setPos)
-        anim.start(QAbstractAnimation.DeleteWhenStopped)
-
-    def animation2(self):
-        anim = QVariantAnimation(self)
-        currRot = int(self.rotation())
-        anim.setStartValue(currRot)
-        anim.setEndValue(currRot+360)
-        anim.setDuration(2000)
-        anim.setEasingCurve(QEasingCurve.Linear)
-        anim.valueChanged.connect(self.setRotation)
-        anim.start(QAbstractAnimation.DeleteWhenStopped)

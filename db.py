@@ -15,10 +15,14 @@ def queryMap(mapName: str):
         grid = cur.fetchone()
 
         # X and Y converted!!
-        cells = {}
+        cells: dict[str, tuple] = {}
         for l in dblist:
             cur.execute(
                 'select locationy, locationx from {} where grid_id=%s'.format(l), [mapName])
             cells[l] = cur.fetchall()
 
         return cells, grid
+
+
+if __name__ == "__main__":
+    print(queryMap('test1'))

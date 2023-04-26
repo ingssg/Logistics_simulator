@@ -3,9 +3,9 @@ from random import randrange
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QGraphicsRectItem, QGraphicsSceneMouseEvent, QLabel, QVBoxLayout, QWidget
 
-from pathfinding import (Direction, NodePos, Pos, ViewPos, backTrack, dijkstra,
-                         evaluateRoute, evaluateRouteToCell, generateGraph)
-from robot import Robot
+from simulator.pathfinding import (Direction, NodePos, Pos, ViewPos, backTrack, dijkstra,
+                                   evaluateRoute, evaluateRouteToCell, generateGraph)
+from simulator.robot import Robot
 
 
 class Cell(QGraphicsRectItem):
@@ -14,7 +14,6 @@ class Cell(QGraphicsRectItem):
     # pos size
     def __init__(self, x, y, w, h, color, cellt='cell'):
         super().__init__(x, y, w, h)
-        print(self.pos())
         self.setBrush(color)
         self.coordinate = (x//100, y//100)
 

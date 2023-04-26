@@ -3,12 +3,12 @@ from time import time
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QWidget
 from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QGraphicsScene, QGraphicsView
-from PySide6.QtCore import Qt, Signal, Slot
-
-from cell import Cell, ChuteCell, StationCell, StationQueueCell
-from db import queryMap
-from pathfinding import Direction, NodePos, evaluateRouteToCell, registerMap
-from robot import Robot
+from PySide6.QtCore import QTimer, Qt, Signal, Slot
+from db.db import queryMap
+from simulation.simulation_observer import SimulationObserver, SimulationReport
+from simulator.pathfinding import Direction, NodePos, evaluateRouteToCell, registerMap
+from simulator.robot import Robot
+from simulator.cell import Cell
 
 CELLSIZE = 100
 
@@ -27,8 +27,8 @@ if tab of the main window is closed
 '''
 
 
-class SimulationWindow(QWidget):
-    simulationFinished = Signal(str, float, int, int)
+class Simulator(QWidget):
+    simulationFinished = Signal(SimulationReport)
 
     def __init__(self, simulationName, mapName='test2') -> None:
         super().__init__(None)
@@ -39,16 +39,16 @@ class SimulationWindow(QWidget):
         self.view = QGraphicsView(self.scene, self)
         self.layout().addWidget(self.view)
 
+        self.simulationFinished.connect(
+            SimulationObserver.getInstance().forwardReport)
+
         self.infoLabel = QLabel(self)
         self.infoLabel.setText('some information here')
         self.layout().addWidget(self.infoLabel)
 
-        '''
-        del self -> use signal -> then parent class delete 
-        '''
         self.cells: list[Cell] = []
         self.robots: list[Robot] = []
-        self.throughput = [0, 0]
+        # self.throughput = [0, 0]
         self.time = time()
 
         # self.generateMap(cells2, grid2)
@@ -68,25 +68,22 @@ class SimulationWindow(QWidget):
     def simulationFinishHandler(self):
         elapsed = time()-self.time
 
-        self.simulationFinished.emit(self.windowTitle(),
-                                     elapsed, self.throughput[0], self.throughput[1])
+        process = [r.processCount for r in self.robots]
 
-    def closeEvent(self, event: QCloseEvent) -> None:
+        report = SimulationReport(
+            self.windowTitle(), elapsed, process, self.timeSeries)
+        self.simulationFinished.emit(report)
+
+    def closeEvent(self, event: QCloseEvent):
         self.simulationFinishHandler()
 
-    @Slot(int)
-    def conveyedHandler(self, robotType):
-        self.throughput[robotType] += 1
+    # @Slot(int,int)
+    # def conveyedHandler(self, robotType,robotNum):
+    #     self.throughput[robotType] += 1
+    #     if robotType==0:
 
     @Slot(int, int, NodePos)
     def missionFinishHandler(self, num: int, type: int, position: NodePos):
-        print('missionfinish emit', num, type, position)
-        self.throughput[type] += 1
-
-        # for cell in self.cells:
-        #     if cell.pos().toPoint().toTuple() == position.point().toTuple():
-        #         cell.assign(self.robots[num])
-        #         return
         for cell in self.cells:
             if cell.coordinate == position.point().toTuple():
                 rbt = self.robots[num]
@@ -116,6 +113,12 @@ class SimulationWindow(QWidget):
     def start(self):
         self.time = time()
 
+        self.timeSeries = [(0, 0)]
+        self.recorder = QTimer(self)
+        self.recorder.timeout.connect(lambda: self.timeSeries.append(
+            (len(self.timeSeries)*5, randint(0, 5))))
+        self.recorder.start(5000)
+
         for r in self.robots:
             r.missionFinished.emit(
                 r.robotNum, r.robotType, r.route[len(r.route)-1])
@@ -133,8 +136,8 @@ class SimulationWindow(QWidget):
         self.scene.addItem(r)
 
     def addCell(self, cell: Cell):
-        self.scene.addItem(cell)
         self.cells.append(cell)
+        self.scene.addItem(cell)
 
     def generateMap(self, cells: dict[str, list], grid: tuple[int, int]):
         registerMap(cells, grid)
@@ -143,10 +146,6 @@ class SimulationWindow(QWidget):
             self.scene.addLine(i*CELLSIZE, 0, i*CELLSIZE, grid[1]*CELLSIZE)
         for i in range(grid[1]+1):
             self.scene.addLine(0, i*CELLSIZE, grid[0]*CELLSIZE, i*CELLSIZE)
-
-        '''
-        self have all info of cells
-        '''
 
         for a, b in cells.items():
             if a == "chute":

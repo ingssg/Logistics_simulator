@@ -10,21 +10,15 @@ from PySide6.QtWidgets import (QGraphicsLineItem, QGraphicsObject, QGraphicsPixm
                                QGraphicsRectItem, QGraphicsScene,
                                QGraphicsView, QStyleOptionGraphicsItem)
 
-from pathfinding import (NodePos, backTrack, dijkstra, evaluateRoute,
-                         facingEach, generateGraph)
+from simulator.pathfinding import (NodePos, backTrack, dijkstra, evaluateRoute,
+                                   facingEach, generateGraph)
 
-# type 0
-ROBOT_EMPTY = "image/robot_empty.png"
-ROBOT_GAS = "image/robot_gas.png"
-# type 1
-ROBOT_MINERAL = "image/robot_mineral.png"
-ROBOT_ANOTHER = "image/robot_another.png"
+ROBOT_EMPTY_0 = "image/robot_empty.png"
+ROBOT_CARRY_0 = "image/robot_gas.png"
+ROBOT_EMPTY_1 = "image/robot_another.png"
+ROBOT_CARRY_1 = "image/robot_mineral.png"
 
 SIZE = 100
-
-ROBOT_INSTRUCTION = Enum("ROBOT_OPERATION", "WAIT MOVE ROTATE DUMP")
-ROBOT_MISSION = Enum("ROBOT_MISSION", "CARRYING RETURNING")
-
 DUR = 750
 WDUR = 850
 
@@ -35,7 +29,7 @@ class Robot(QGraphicsObject):
     _registry: list[Robot] = []
 
     missionFinished = Signal(int, int, NodePos)
-    conveyed = Signal(int)
+    # conveyed = Signal(int, int)
 
     def __init__(self, size: int, rNum: int, rType: int, position: NodePos):
         super().__init__()
@@ -43,11 +37,11 @@ class Robot(QGraphicsObject):
         self.painter = QPainter()
         self.size = size
         if rType == 0:
-            self.pixmap_default = QPixmap(ROBOT_EMPTY).scaled(size, size)
-            self.pixmap_box = QPixmap(ROBOT_GAS).scaled(size, size)
+            self.pixmap_default = QPixmap(ROBOT_EMPTY_0).scaled(size, size)
+            self.pixmap_box = QPixmap(ROBOT_CARRY_0).scaled(size, size)
         else:
-            self.pixmap_default = QPixmap(ROBOT_ANOTHER).scaled(size, size)
-            self.pixmap_box = QPixmap(ROBOT_MINERAL).scaled(size, size)
+            self.pixmap_default = QPixmap(ROBOT_EMPTY_1).scaled(size, size)
+            self.pixmap_box = QPixmap(ROBOT_CARRY_1).scaled(size, size)
         self.pixmap_current = self.pixmap_default
 
         self.setPos(position.toViewPos().x, position.toViewPos().y)
@@ -57,6 +51,7 @@ class Robot(QGraphicsObject):
         self.robotType = rType
         self.robotNum = rNum
 
+        self.processCount = 0
         self.power = 100
         self.stopped = False
         self.box = 0
@@ -111,7 +106,8 @@ class Robot(QGraphicsObject):
         self.stopped = True
         self.box = 0
         self.dumpPixmap(self.box)
-        # QTimer.singleShot(duration, self.doNextOperation)
+        # self.conveyed.emit(self.robotType, self.robotNum)
+        self.processCount += 1
         self.timer = QTimer(self)
         self.timer.setSingleShot(True)
         self.timer.start(duration)
@@ -119,7 +115,6 @@ class Robot(QGraphicsObject):
     def waitOperation(self, duration: int):
         self.stopped = True
         self.deadlockedCounter += 1
-        # QTimer.singleShot(duration, self.doNextOperation)
         self.timer = QTimer(self)
         self.timer.setSingleShot(True)
         self.timer.start(duration)
@@ -130,7 +125,6 @@ class Robot(QGraphicsObject):
         self.sequence = 0
         self.route = route
         self.priority = self.robotNum
-
         self.box = box
         self.dumpPixmap(self.box)
 
@@ -139,7 +133,6 @@ class Robot(QGraphicsObject):
     def finishMission(self):
         if self.box:
             self.dumpOperation(750)
-            self.conveyed.emit(self.robotType)
         else:
             self.missionFinished.emit(
                 self.robotNum, self.robotType, self.route[len(self.route)-1])

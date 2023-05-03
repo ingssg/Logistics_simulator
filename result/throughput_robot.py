@@ -10,7 +10,7 @@ from simulation.simulation_observer import SimulationReport
 class ThroughputRobot(QChartView):
     def __init__(self, report: SimulationReport, parent=None):
         super().__init__(parent)
-        report.robots = [1, 2, 3, 4]
+        # report.robots = [1, 2, 3, 4]
         self.series = QBarSeries()
         set1 = QBarSet("Throughput")
         set1.append(report.robots)

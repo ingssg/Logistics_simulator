@@ -13,6 +13,7 @@ class SimulationReport:
 class SimulationObserver(QObject):
     _instance = None
     simulationReported = Signal(SimulationReport)
+    simulationRemoved = Signal(int)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -20,6 +21,10 @@ class SimulationObserver(QObject):
     @Slot(SimulationReport)
     def forwardReport(self, report: SimulationReport):
         self.simulationReported.emit(report)
+
+    @Slot(int)
+    def forwardRemoved(self, index: int):
+        self.simulationRemoved.emit(index)
 
     @classmethod
     def getInstance(cls):

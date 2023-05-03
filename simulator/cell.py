@@ -9,15 +9,13 @@ from simulator.robot import Robot
 
 
 class Cell(QGraphicsRectItem):
-    # cellType = 'cell'
-
-    # pos size
     def __init__(self, x, y, w, h, color, cellt='cell'):
         super().__init__(x, y, w, h)
         self.setBrush(color)
         self.coordinate = (x//100, y//100)
 
         self.cellType = cellt
+        self.outDirection = {}
 
         self.setAcceptHoverEvents(True)
         self.infoWindow = CellInfoWindow(self.coordinate, self.cellType)

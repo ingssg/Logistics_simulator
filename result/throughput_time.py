@@ -11,9 +11,7 @@ class ThroughputTime(QChartView):
         self.series1 = QLineSeries()
         self.series1.setName('Throughput')
         s = list(map(lambda x: QPointF(x[0], x[1]), report.timeSeries))
-        print(s)
-        self.series1.append(
-            s)
+        self.series1.append(s)
 
         self.lineChart = QChart()
         self.lineChart.addSeries(self.series1)

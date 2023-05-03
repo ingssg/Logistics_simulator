@@ -1,17 +1,27 @@
 from __future__ import annotations
 
-from enum import Enum
+from PySide6.QtCore import (
+    QAbstractAnimation,
+    QEasingCurve,
+    QPoint,
+    QPointF,
+    QRectF,
+    QTimer,
+    QVariantAnimation,
+    Signal,
+    Slot,
+)
+from PySide6.QtGui import QPainter, QPixmap
+from PySide6.QtWidgets import (
+    QGraphicsObject,
+    QStyleOptionGraphicsItem,
+)
 
-from PySide6.QtCore import (QAbstractAnimation, QEasingCurve, QObject, QPoint,
-                            QPointF, QRectF, Qt, QTimer, QVariantAnimation, Signal,
-                            Slot)
-from PySide6.QtGui import QColor, QPainter, QPen, QPixmap, QTransform
-from PySide6.QtWidgets import (QGraphicsLineItem, QGraphicsObject, QGraphicsPixmapItem,
-                               QGraphicsRectItem, QGraphicsScene,
-                               QGraphicsView, QStyleOptionGraphicsItem)
-
-from simulator.pathfinding import (NodePos, backTrack, dijkstra, evaluateRoute,
-                                   facingEach, generateGraph)
+from simulator.pathfinding import (
+    NodePos,
+    evaluateRoute,
+    facingEach,
+)
 
 ROBOT_EMPTY_0 = "image/robot_empty.png"
 ROBOT_CARRY_0 = "image/robot_gas.png"
@@ -19,8 +29,9 @@ ROBOT_EMPTY_1 = "image/robot_another.png"
 ROBOT_CARRY_1 = "image/robot_mineral.png"
 
 SIZE = 100
-DUR = 750
-WDUR = 850
+# DUR = 750
+# WDUR = 850
+# 속도 대략 1초에 1.5칸
 
 DEAD_THRESHOLD = 7
 
@@ -29,9 +40,9 @@ class Robot(QGraphicsObject):
     _registry: list[Robot] = []
 
     missionFinished = Signal(int, int, NodePos)
-    # conveyed = Signal(int, int)
+    conveyed = Signal(int)
 
-    def __init__(self, size: int, rNum: int, rType: int, position: NodePos):
+    def __init__(self, size: int, rNum: int, rType: int, position: NodePos, speed):
         super().__init__()
 
         self.painter = QPainter()
@@ -64,14 +75,15 @@ class Robot(QGraphicsObject):
         # self.wait : int
         # and count wait ??
 
+        self.speed = speed
+
         self._registry.append(self)
 
     def boundingRect(self):
         return QRectF(0, 0, self.size, self.size)
 
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget):
-        painter.drawPixmap(QPointF(0, 0), self.pixmap_current,
-                           self.boundingRect())
+        painter.drawPixmap(QPointF(0, 0), self.pixmap_current, self.boundingRect())
 
     def dumpPixmap(self, box: int):
         if box != 0:
@@ -83,7 +95,7 @@ class Robot(QGraphicsObject):
         anim = QVariantAnimation(self)
         currRot = int(self.rotation())
         anim.setStartValue(currRot)
-        anim.setEndValue(currRot+degree)
+        anim.setEndValue(currRot + degree)
         anim.setDuration(duration)
         anim.setEasingCurve(QEasingCurve.Linear)
         anim.valueChanged.connect(self.setRotation)
@@ -106,10 +118,11 @@ class Robot(QGraphicsObject):
         self.stopped = True
         self.box = 0
         self.dumpPixmap(self.box)
-        # self.conveyed.emit(self.robotType, self.robotNum)
-        self.processCount += 1
+        self.conveyed.emit(self.robotNum)
+        # self.processCount += 1
         self.timer = QTimer(self)
         self.timer.setSingleShot(True)
+        self.timer.timeout.connect(self.doNextOperation)
         self.timer.start(duration)
 
     def waitOperation(self, duration: int):
@@ -117,6 +130,7 @@ class Robot(QGraphicsObject):
         self.deadlockedCounter += 1
         self.timer = QTimer(self)
         self.timer.setSingleShot(True)
+        self.timer.timeout.connect(self.doNextOperation)
         self.timer.start(duration)
 
     # i think this should be changed
@@ -135,27 +149,28 @@ class Robot(QGraphicsObject):
             self.dumpOperation(750)
         else:
             self.missionFinished.emit(
-                self.robotNum, self.robotType, self.route[len(self.route)-1])
+                self.robotNum, self.robotType, self.route[len(self.route) - 1]
+            )
 
-    '''
+    """
     function split
     operationposwhenarrived
     operationposopponent (operationposmoving)
-    '''
+    """
 
     def currOperationPosWait(self) -> NodePos:
         # seq is not accumulated
         if self.stopped:
             return self.route[self.sequence]
 
-        if self.sequence+1 == len(self.route):
+        if self.sequence + 1 == len(self.route):
             return self.route[self.sequence]
         return self.route[self.sequence]
 
     def currRobotPosWait(self):
         if self.sequence == 0 or self.stopped:
             return self.route[self.sequence]
-        return self.route[self.sequence-1]
+        return self.route[self.sequence - 1]
 
     @Slot()
     def doNextOperation(self):
@@ -171,36 +186,45 @@ class Robot(QGraphicsObject):
             for r in self._registry:
                 neighborPos = r.route[r.sequence].point().toTuple()
                 if r.stopped:
-                    if neighborPos == (selfPos[0], selfPos[1]-1) or neighborPos == (selfPos[0], selfPos[1]+1) or neighborPos == (selfPos[0]-1, selfPos[1]) or neighborPos == (selfPos[0]+1, selfPos[1]):
+                    if (
+                        neighborPos == (selfPos[0], selfPos[1] - 1)
+                        or neighborPos == (selfPos[0], selfPos[1] + 1)
+                        or neighborPos == (selfPos[0] - 1, selfPos[1])
+                        or neighborPos == (selfPos[0] + 1, selfPos[1])
+                    ):
                         bots.append(r)
 
             for r in bots:
                 # i think tempblocked should be nodepos
                 # each cell can assign "align" mission to robot
                 # to dump or get box
-                route = evaluateRoute(r.route[r.sequence], r.route[len(
-                    r.route)-1], tempBlocked=[r.route[r.sequence+1].point().toTuple()])
+                route = evaluateRoute(
+                    r.route[r.sequence],
+                    r.route[len(r.route) - 1],
+                    tempBlocked=[r.route[r.sequence + 1].point().toTuple()],
+                )
                 r.assignMission()
 
         # robot is reached this cell just right now!
-        degreeDiff = self.route[self.sequence +
-                                1].degree()-self.route[self.sequence].degree()
+        degreeDiff = (
+            self.route[self.sequence + 1].degree() - self.route[self.sequence].degree()
+        )
 
         if degreeDiff != 0:
             self.stopped = False
             self.sequence += 1
-            self.rotateOperation(degreeDiff, 750)
+            self.rotateOperation(degreeDiff, self.speed)
         else:
             self.evadeCollision()
 
-    '''
+    """
     policy type = live evasion, wait until open
 
     immediate reevaluate : maybe next time... when project finished
-    '''
+    """
 
     def evadeCollision(self):
-        self_op_dest = self.route[self.sequence+1]
+        self_op_dest = self.route[self.sequence + 1]
 
         for r in self._registry:
             if r.robotNum == self.robotNum:
@@ -211,7 +235,7 @@ class Robot(QGraphicsObject):
 
             # maybe do not use of these...
 
-            '''
+            """
             1 0 2
             1 wait
             2 proceed
@@ -219,13 +243,13 @@ class Robot(QGraphicsObject):
             / 0 1
             0
             2
-            '''
+            """
             # self is finished operation just right now!
             # self.seq is not accumulated!
 
             if not r.stopped and self_op_dest.point() == opOperPos.point():
                 print("op")
-                self.waitOperation(WDUR)
+                self.waitOperation(self.speed + 30)
                 return
 
             elif self_op_dest.point() == opCurrPos.point():
@@ -233,7 +257,7 @@ class Robot(QGraphicsObject):
                     print("facing")
 
                     # if tempblocked is one of deadlocked robots destination??
-                    if self.route[len(self.route)-1].point() == opCurrPos.point():
+                    if self.route[len(self.route) - 1].point() == opCurrPos.point():
                         self.priority += 1
 
                     if self.priority < r.priority:
@@ -241,23 +265,24 @@ class Robot(QGraphicsObject):
                         print("evaluate")
                         # if tempblocked is one of deadlocked robots destination??
                         # tempblocked should be nodepos?
-                        route = evaluateRoute(self.route[self.sequence], self.route[len(
-                            self.route)-1], tempBlocked=[opCurrPos.point().toTuple()])
+                        route = evaluateRoute(
+                            self.route[self.sequence],
+                            self.route[len(self.route) - 1],
+                            tempBlocked=[opCurrPos.point().toTuple()],
+                        )
                         self.assignMission(route, self.box)
                         return
                     else:
-                        print(self.robotNum, "evaluate else",
-                              self.priority, r.priority)
-                        self.waitOperation(WDUR)
+                        print(self.robotNum, "evaluate else", self.priority, r.priority)
+                        self.waitOperation(self.speed + 30)
                         return
 
                 else:
                     print("not facing")
-                    self.waitOperation(WDUR)
+                    self.waitOperation(self.speed + 30)
                     return
 
         self.stopped = False
         self.sequence += 1
-        self.moveOperation(
-            self.route[self.sequence].toViewPos().point(), DUR)
+        self.moveOperation(self.route[self.sequence].toViewPos().point(), self.speed)
         return

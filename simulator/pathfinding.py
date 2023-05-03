@@ -5,6 +5,8 @@ from enum import IntEnum
 
 from PySide6.QtCore import QPoint
 
+from db.db import Warehouse, queryMap
+
 
 class Direction(IntEnum):
     N = 0
@@ -37,7 +39,7 @@ class Pos:
         return QPoint(self.x, self.y)
 
     def degree(self):
-        return self.direction*90
+        return self.direction * 90
 
 
 class ViewPos(Pos):
@@ -45,7 +47,7 @@ class ViewPos(Pos):
         super().__init__(x, y, direction)
 
     def toNodePos(self) -> NodePos:
-        return NodePos(self.x//100, self.y//100, self.direction)
+        return NodePos(self.x // 100, self.y // 100, self.direction)
 
     def __eq__(self, __o: object) -> bool:
         return type(__o) is ViewPos and super().__eq__(__o)
@@ -59,7 +61,7 @@ class NodePos(Pos):
         super().__init__(x, y, direction)
 
     def toViewPos(self) -> ViewPos:
-        return ViewPos(self.x*100, self.y*100, self.direction)
+        return ViewPos(self.x * 100, self.y * 100, self.direction)
 
     def __eq__(self, __o: object) -> bool:
         return type(__o) is NodePos and super().__eq__(__o)
@@ -72,7 +74,7 @@ class NodePos(Pos):
 
 
 def facingEach(a: NodePos, b: NodePos):
-    return (a.direction+b.direction) % 2 == 0
+    return (a.direction + b.direction) % 2 == 0
 
 
 graphx = 0
@@ -80,26 +82,31 @@ graphy = 0
 cells = {}
 
 
-def registerMap(icells, grid):
+def registerMap():
+    map = queryMap()
     global graphx
     global graphy
     global cells
-    cells = icells
-    graphx = grid[0]
-    graphy = grid[1]
+    cells = map.cellDirs
+    graphx = map.grid[0]
+    graphy = map.grid[1]
 
 
 def generateGraph(tempBlocked: list[tuple[int, int]] = []):
-    nodes = [(i, j) for j in range(graphx) for i in range(graphy)]
+    nodes = [(c[0], c[1]) for c in cells]
     edges: dict[NodePos, list[tuple[NodePos, int]]] = {}
     orientedNodes: list[NodePos] = []
 
-    # fix nodes with map from db
-    # for cells[blocked] nodes.remove
-
+    # 블락 제거
     for b in tempBlocked:
         nodes.remove(b)
 
+    """셀의 방향 대로 에지 넣어야 함
+    지금은 아래 루프에서 에지 넣고 있음 시계방향에지도
+    만약 남북으로만 가는 셀이라면
+    아 일단 회전엣지는 다 넣고
+    다른 셀로 가는 엣지만 계산해서 넣어야겠다
+    """
     for n in nodes:
         for i in range(4):
             add = NodePos(n[0], n[1], i)
@@ -114,7 +121,7 @@ def generateGraph(tempBlocked: list[tuple[int, int]] = []):
         elif n.direction == 3:
             clockwise, counterwise = 0, 2
         else:
-            clockwise, counterwise = n.direction+1, n.direction-1
+            clockwise, counterwise = n.direction + 1, n.direction - 1
         edges[n].append((NodePos(n.x, n.y, clockwise), 10))
         edges[n].append((NodePos(n.x, n.y, counterwise), 10))
 
@@ -122,23 +129,25 @@ def generateGraph(tempBlocked: list[tuple[int, int]] = []):
         # if data from file
 
         if n.direction == 0:
-            if NodePos(n.x, n.y-1, n.direction) in orientedNodes:
-                edges[n].append((NodePos(n.x, n.y-1, n.direction), 10))
+            if NodePos(n.x, n.y - 1, n.direction) in orientedNodes:
+                edges[n].append((NodePos(n.x, n.y - 1, n.direction), 10))
         if n.direction == 1:
-            if NodePos(n.x+1, n.y, n.direction) in orientedNodes:
-                edges[n].append((NodePos(n.x+1, n.y, n.direction), 10))
+            if NodePos(n.x + 1, n.y, n.direction) in orientedNodes:
+                edges[n].append((NodePos(n.x + 1, n.y, n.direction), 10))
         if n.direction == 2:
-            if NodePos(n.x, n.y+1, n.direction) in orientedNodes:
-                edges[n].append((NodePos(n.x, n.y+1, n.direction), 10))
+            if NodePos(n.x, n.y + 1, n.direction) in orientedNodes:
+                edges[n].append((NodePos(n.x, n.y + 1, n.direction), 10))
         if n.direction == 3:
-            if NodePos(n.x-1, n.y, n.direction) in orientedNodes:
-                edges[n].append((NodePos(n.x-1, n.y, n.direction), 10))
+            if NodePos(n.x - 1, n.y, n.direction) in orientedNodes:
+                edges[n].append((NodePos(n.x - 1, n.y, n.direction), 10))
 
     return orientedNodes, edges
 
 
-def dijkstra(nodes: list[NodePos], edges: dict[NodePos, list[tuple[NodePos, int]]], src: NodePos):
-    distances = {node: float('inf') for node in nodes}
+def dijkstra(
+    nodes: list[NodePos], edges: dict[NodePos, list[tuple[NodePos, int]]], src: NodePos
+):
+    distances = {node: float("inf") for node in nodes}
     prevs: dict[NodePos, NodePos] = {node: None for node in nodes}
     queue: list[tuple[float, NodePos]] = []
 
@@ -183,7 +192,7 @@ def evaluateRoute(src: NodePos, dest: NodePos, tempBlocked: list[tuple[int, int]
 def evaluateRouteToCell(src: NodePos, dest: tuple[int, int]):
     nodes, edges = generateGraph()
     distances, prevs = dijkstra(nodes, edges, src)
-    min = (None, float('inf'))
+    min = (None, float("inf"))
     for i in range(4):
         temp = NodePos(dest[0], dest[1], i)
 

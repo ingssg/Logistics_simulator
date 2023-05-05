@@ -2,7 +2,7 @@ import os
 import sys
 from PySide6 import *
 from PySide6.QtCore import QFileInfo
-from PySide6.QtGui import Qt
+from PySide6.QtGui import Qt, QIcon, QPixmap, QFont, QBrush
 from PySide6.QtUiTools import loadUiType
 from PySide6.QtWidgets import (
     QMainWindow,
@@ -24,7 +24,7 @@ conn = pymysql.connect(
     host="127.0.0.1",
     port=3306,
     user="root",
-    password="root",
+    password="lghpdb",
     db="lghpdb",
     charset="utf8",
     client_flag=CLIENT.MULTI_STATEMENTS,
@@ -32,11 +32,33 @@ conn = pymysql.connect(
 )
 cur = conn.cursor()
 
+current_path = os.path.dirname(os.path.abspath(__file__))
+r_path = os.path.join(current_path, "image", "r_arrow.png")
+u_path = os.path.join(current_path, "image", "u_arrow.png")
+l_path = os.path.join(current_path, "image", "l_arrow.png")
+d_path = os.path.join(current_path, "image", "d_arrow.png")
+r_l_path = os.path.join(current_path, "image", "r_l_arrow.png")
+u_d_path = os.path.join(current_path, "image", "u_d_arrow.png")
+a_path = os.path.join(current_path, "image", "all_arrow.png")
+logo_path=os.path.join(current_path, "image","logo_trans.png")
 
 def resource_path(relative_path):
     base_path = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(base_path, relative_path)
 
+def dir_img(path, text):
+    pixmap = QPixmap(path)
+    pixmap.scaled(1, 1)
+    icon = QIcon(pixmap)
+    item = QTableWidgetItem()
+    item.setText(text)
+    item.setIcon(icon)
+    font = QFont()
+    font.setPointSize(1)
+    item.setFont(font)
+    item.setForeground(QBrush(Qt.transparent))
+    item.setTextAlignment(Qt.AlignCenter)
+    return item
 
 form = resource_path("homePage.ui")
 form_class = loadUiType(form)[0]
@@ -51,7 +73,10 @@ class WindowClass(QMainWindow, form_class):
         super().__init__()
         self.setupUi(self)
         self.setWindowTitle("시뮬레이터")
-        self.setFixedSize(1000, 550)
+        self.setWindowIcon(QIcon('./image/logo.png'))
+        self.setGeometry(100, 50, 1000, 550)
+        pixmap = QPixmap(logo_path)
+        self.logolabel.setPixmap(pixmap)
         self.loadMap.clicked.connect(self.btn_loadMap)  # loadMap button 클릭
 
     # -loadMap button 함수: simul.ui로 창전환
@@ -69,14 +94,13 @@ class secondwindow(QDialog, QWidget, form_secondwindow):
         super(secondwindow, self).__init__()
         self.setupUi(self)
         self.setWindowTitle("시뮬레이터")
-        self.setFixedSize(1000, 550)
+        self.setWindowIcon(QIcon('./image/logo.png'))
+        self.setGeometry(100, 50, 1000, 550)
         self.show()
 
         ###   overview  tab ###
         # overview-1.map 파일 미리보기
-        file = QFileDialog.getOpenFileName(
-            self, "", "", "xlsx파일 (*.xlsx);; All File(*)"
-        )  # !!저장파일 타입 정해지면, 확장자에 추가
+        file = QFileDialog.getOpenFileName(self, "", "", "xlsx파일 (*.xlsx);; All File(*)")  # !!저장파일 타입 정해지면, 확장자에 추가
         global filename  # 선언, 할당 분리
         filename = file[0]
         load_xlsx = openpyxl.load_workbook(file[0], data_only=True)
@@ -114,28 +138,58 @@ class secondwindow(QDialog, QWidget, form_secondwindow):
                 self.map.setItem(i, j, QTableWidgetItem())
         self.map.resizeColumnsToContents()
         self.map.resizeRowsToContents()
+
+        self.map.setStyleSheet("background-color:white")
+        self.setStyleSheet("background-color:rgb(1,35,38);")
+        cnum = 1
         for i in range(1, row + 1):
             for j in range(1, col + 1):
-                if load_sheet.cell(i, j).value == "y":
+                cell_num = str(file_name) + '_c' + str(cnum).zfill(4)
+                cnum = cnum + 1
+                sql = "SELECT * FROM cell " + "WHERE Cell_ID = %s;"
+                cur.execute(sql, [cell_num])
+                cellinfo = cur.fetchone()
+                if cellinfo[6] == 1:
+                    if cellinfo[7] == 1:
+                        item = dir_img(u_d_path, "↕")
+                        self.map.setItem(i - 1, j - 1, item)
+                        if cellinfo[8] == 1:
+                            item = dir_img(a_path, "↕↔")
+                            self.map.setItem(i - 1, j - 1, item)
+                    else:
+                        item = dir_img(u_path, "↑")
+                        self.map.setItem(i - 1, j - 1, item)
+                elif cellinfo[7] == 1:
+                    item = dir_img(d_path, "↓")
+                    self.map.setItem(i - 1, j - 1, item)
+                elif cellinfo[8] == 1:
+                    if cellinfo[9] == 1:
+                        item = dir_img(r_l_path, "↔")
+                        self.map.setItem(i - 1, j - 1, item)
+                    else:
+                        item = dir_img(l_path, "←")
+                        self.map.setItem(i - 1, j - 1, item)
+                elif cellinfo[9] == 1:
+                    item = dir_img(r_path, "→")
+                    self.map.setItem(i - 1, j - 1, item)
+
+                if load_sheet.cell(i, j).fill.start_color.index == 'FFFFFF00':
                     self.map.item(i - 1, j - 1).setBackground(Qt.yellow)
-                    self.map.item(i - 1, j - 1).setText("y")
-                    self.map.item(i - 1, j - 1).setForeground(Qt.yellow)
-                if load_sheet.cell(i, j).value == "b":
+                    self.map.item(i - 1, j - 1).setForeground(Qt.black)
+                elif load_sheet.cell(i, j).fill.start_color.index == 'FF0000FF':
                     self.map.item(i - 1, j - 1).setBackground(Qt.darkBlue)
-                    self.map.item(i - 1, j - 1).setText("b")
-                    self.map.item(i - 1, j - 1).setForeground(Qt.darkBlue)
-                if load_sheet.cell(i, j).value == "g":
+                    self.map.item(i - 1, j - 1).setForeground(Qt.white)
+                elif load_sheet.cell(i, j).fill.start_color.index == 'FF008000':
                     self.map.item(i - 1, j - 1).setBackground(Qt.darkGreen)
-                    self.map.item(i - 1, j - 1).setText("g")
-                    self.map.item(i - 1, j - 1).setForeground(Qt.darkGreen)
-                if load_sheet.cell(i, j).value == "r":
+                    self.map.item(i - 1, j - 1).setForeground(Qt.white)
+                elif load_sheet.cell(i, j).fill.start_color.index == 'FFFF0000':
                     self.map.item(i - 1, j - 1).setBackground(Qt.red)
-                    self.map.item(i - 1, j - 1).setText("r")
-                    self.map.item(i - 1, j - 1).setForeground(Qt.red)
-                if load_sheet.cell(i, j).value == "d":
+                    self.map.item(i - 1, j - 1).setForeground(Qt.white)
+                elif load_sheet.cell(i, j).fill.start_color.index == 'FF808080':
                     self.map.item(i - 1, j - 1).setBackground(Qt.darkGray)
-                    self.map.item(i - 1, j - 1).setText("d")
-                    self.map.item(i - 1, j - 1).setForeground(Qt.darkGray)
+                    self.map.item(i - 1, j - 1).setForeground(Qt.white)
+                else:
+                    self.map.item(i - 1, j - 1).setForeground(Qt.black)
 
         # overview-2.속성별 색상 정보 보여주기
         sql = "SELECT * FROM grid " + "WHERE Grid_ID = %s;"

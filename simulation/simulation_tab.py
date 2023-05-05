@@ -1,3 +1,4 @@
+from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QLabel, QPushButton, QTabBar, QTabWidget
 from simulation.simulation_form import SimulationForm
 from simulation.simulation_observer import SimulationObserver
@@ -10,6 +11,8 @@ class SimulationTab(QTabWidget):
         self.addTab(QLabel('addtabtab'), '+')
         self.tabBar().tabBarClicked.connect(self.addTabHandler)
         self.tabCloseRequested.connect(self.removeTabHandler)
+
+        self.setFont(QFont('나눔고딕 ExtraBold', 10))
 
     def addTabHandler(self, index):
         if index == self.count()-1:

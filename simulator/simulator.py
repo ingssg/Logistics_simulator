@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 from random import randint
 from time import time
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
-from PySide6.QtGui import QCloseEvent
+from PySide6.QtGui import QCloseEvent, QIcon
 from PySide6.QtWidgets import QGraphicsScene, QGraphicsView
 from PySide6.QtCore import QTimer, Qt, Signal, Slot
 from db.db import Warehouse, queryMap
@@ -25,6 +25,9 @@ class Simulator(QWidget):
     def __init__(self, params: SimulationParameter) -> None:
         super().__init__(None)
         self.setWindowTitle(params.name)
+        self.setWindowIcon(QIcon('./image/logo.png'))
+        self.setGeometry(130, 50, 1000, 550)
+        self.setStyleSheet("background-color:rgb(1,35,38); color:rgb(82,242,226);")
         self.setLayout(QHBoxLayout())
 
         self.scene = QGraphicsScene()

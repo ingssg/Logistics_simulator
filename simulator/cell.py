@@ -1,6 +1,7 @@
 from random import randrange
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QGraphicsRectItem, QGraphicsSceneMouseEvent, QLabel, QVBoxLayout, QWidget
 
 from simulator.pathfinding import (Direction, NodePos, Pos, ViewPos, backTrack, dijkstra,
@@ -33,6 +34,9 @@ class CellInfoWindow(QWidget):
         super().__init__(None)
         self.setWindowTitle('new simulation')
         self.setLayout(QVBoxLayout())
+
+        self.setWindowIcon(QIcon('./image/info.png'))
+        self.setStyleSheet("background-color:rgb(1,35,38); color:rgb(82,242,226);")
 
         self.layout().addWidget(QLabel(f"Coordinate X : {coordinate[0]}"))
         self.layout().addWidget(QLabel(f"Coordinate Y : {coordinate[1]}"))

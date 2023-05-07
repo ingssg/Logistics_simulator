@@ -106,6 +106,7 @@ class secondwindow(QDialog, QWidget, form_secondwindow):
         registerMap()
         self.tabWidget.addTab(SimulationTab(), "Simulations")
         self.tabWidget.addTab(ResultTab(), "Results")
+        # park
 
         self.map.setColumnCount(col)
         self.map.setRowCount(row)

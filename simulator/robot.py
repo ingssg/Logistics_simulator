@@ -29,23 +29,21 @@ ROBOT_EMPTY_1 = "image/robot_another.png"
 ROBOT_CARRY_1 = "image/robot_mineral.png"
 
 SIZE = 100
-# DUR = 750
-# WDUR = 850
-# 속도 대략 1초에 1.5칸
 
 DEAD_THRESHOLD = 7
 
 
 class Robot(QGraphicsObject):
+    # problem when 2 or more simulator starts shit
+    # use dict
     _registry: list[Robot] = []
 
     missionFinished = Signal(int, int, NodePos)
-    conveyed = Signal(int)
+    # conveyed = Signal(int)
 
     def __init__(self, size: int, rNum: int, rType: int, position: NodePos, speed):
         super().__init__()
 
-        self.painter = QPainter()
         self.size = size
         if rType == 0:
             self.pixmap_default = QPixmap(ROBOT_EMPTY_0).scaled(size, size)
@@ -69,6 +67,8 @@ class Robot(QGraphicsObject):
         self.sequence = 0
         self.route = [position]
         self.priority = rNum
+
+        self.processCount = 0
 
         self.deadlockedCounter = 0
         # detect deadlock
@@ -118,8 +118,8 @@ class Robot(QGraphicsObject):
         self.stopped = True
         self.box = 0
         self.dumpPixmap(self.box)
-        self.conveyed.emit(self.robotNum)
-        # self.processCount += 1
+        # self.conveyed.emit(self.robotNum)
+        self.processCount += 1
         self.timer = QTimer(self)
         self.timer.setSingleShot(True)
         self.timer.timeout.connect(self.doNextOperation)

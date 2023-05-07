@@ -1,5 +1,6 @@
 from PySide6.QtCore import Slot
 from PySide6.QtWidgets import QLabel, QPushButton, QTabBar, QTabWidget
+from result.result_table import ResultTable
 from result.throughput_robot import ThroughputRobot
 from result.throughput_time import ThroughputTime
 from simulation.simulation_form import SimulationForm
@@ -16,10 +17,11 @@ class ResultTab(QTabWidget):
 
     @Slot(SimulationReport)
     def addResult(self, report: SimulationReport):
-        self.addTab(ThroughputRobot(report), f'{report.name} - Robot')
-        self.addTab(ThroughputTime(report), f'{report.name} - TimeSeries')
+        self.addTab(ResultTable(report), f"{report.name} - Result")
+        self.addTab(ThroughputRobot(report), f"{report.name} - Robot")
+        self.addTab(ThroughputTime(report), f"{report.name} - TimeSeries")
 
     @Slot(int)
     def removeCharts(self, index):
-        self.removeTab(index*2)
-        self.removeTab(index*2)
+        self.removeTab(index * 2)
+        self.removeTab(index * 2)

@@ -87,13 +87,13 @@ def registerMap():
     global graphx
     global graphy
     global cells
-    cells = map.cellDirs
+    cells = map.cells
     graphx = map.grid[0]
     graphy = map.grid[1]
 
 
 def generateGraph(tempBlocked: list[tuple[int, int]] = []):
-    nodes = [(c[0], c[1]) for c in cells]
+    nodes = [c.pos for c in cells]
     edges: dict[NodePos, list[tuple[NodePos, int]]] = {}
     orientedNodes: list[NodePos] = []
 
@@ -106,6 +106,10 @@ def generateGraph(tempBlocked: list[tuple[int, int]] = []):
     만약 남북으로만 가는 셀이라면
     아 일단 회전엣지는 다 넣고
     다른 셀로 가는 엣지만 계산해서 넣어야겠다
+
+    최적화 : 나가는 방향 으로만 회전하는 회전엣지만 넣기
+
+    근데 : 일단 알고리즘은 나중에 짜고 그림만 넣자
     """
     for n in nodes:
         for i in range(4):

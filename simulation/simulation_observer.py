@@ -6,7 +6,8 @@ from PySide6.QtCore import QObject, Signal, Slot
 class SimulationReport:
     name: str
     elapsed: float
-    robots: list[int]
+    # type, process
+    robots: list[tuple[int, int]]
     timeSeries: list[tuple[float, int]]
 
 

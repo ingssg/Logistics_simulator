@@ -1,37 +1,85 @@
 from random import randrange
+from typing import Optional
 
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QGraphicsRectItem, QGraphicsSceneMouseEvent, QLabel, QVBoxLayout, QWidget
+from PySide6.QtCore import QPointF, QRectF, Qt
+from PySide6.QtGui import QColor, QPainter, QPixmap
+from PySide6.QtWidgets import (
+    QGraphicsObject,
+    QGraphicsPixmapItem,
+    QGraphicsRectItem,
+    QGraphicsSceneMouseEvent,
+    QLabel,
+    QStyleOptionGraphicsItem,
+    QVBoxLayout,
+    QWidget,
+)
 
-from simulator.pathfinding import (Direction, NodePos, Pos, ViewPos, backTrack, dijkstra,
-                                   evaluateRoute, evaluateRouteToCell, generateGraph)
+from simulator.pathfinding import (
+    evaluateRouteToCell,
+)
 from simulator.robot import Robot
 
+IMAGE_N = "image/u_arrow.png"
+IMAGE_S = "image/d_arrow.png"
+IMAGE_E = "image/r_arrow.png"
+IMAGE_W = "image/l_arrow.png"
+IMAGE_H = "image/r_l_arrow.png"
+IMAGE_V = "image/u_d_arrow.png"
+IMAGE_A = "image/all_arrow.png"
 
-class Cell(QGraphicsRectItem):
-    def __init__(self, x, y, w, h, color, cellt='cell'):
-        super().__init__(x, y, w, h)
-        self.setBrush(color)
-        self.coordinate = (x//100, y//100)
+cell_colors = {
+    "cell": QColor(0, 0, 0, 0),
+    "chute": QColor("red"),
+    "buffer": QColor("blue"),
+    "workstation": QColor("green"),
+    "block": QColor("lightgray"),
+    "chargingstation": QColor("yellow"),
+}
 
-        self.cellType = cellt
-        self.outDirection = {}
+
+class Cell(QGraphicsObject):
+    def __init__(self, loc, outdir, cellType="cell", parent=None):
+        super().__init__(parent)
+        self.setPos(loc[0] * 100, loc[1] * 100)
+        self.nodeLoc = loc
+
+        self.cellType = cellType
+        self.color = cell_colors[cellType]
+        if outdir == (1, 0, 0, 0):
+            self.pixmap = IMAGE_N
+        elif outdir == (0, 0, 1, 0):
+            self.pixmap = IMAGE_S
+        elif outdir == (0, 1, 0, 0):
+            self.pixmap = IMAGE_E
+        elif outdir == (0, 0, 0, 1):
+            self.pixmap = IMAGE_W
+        elif outdir == (1, 0, 1, 0):
+            self.pixmap = IMAGE_V
+        elif outdir == (0, 1, 0, 1):
+            self.pixmap = IMAGE_H
+        elif outdir == (1, 1, 1, 1):
+            self.pixmap = IMAGE_A
+        else:
+            self.pixmap = IMAGE_N
 
         self.setAcceptHoverEvents(True)
-        self.infoWindow = CellInfoWindow(self.coordinate, self.cellType)
+        self.infoWindow = CellInfoWindow(self.pos().toTuple(), cellType)
 
-    def mousePressEvent(self, event: QGraphicsSceneMouseEvent) -> None:
+    def boundingRect(self) -> QRectF:
+        return QRectF(0, 0, 100, 100)
+
+    def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget):
+        painter.fillRect(self.boundingRect(), self.color)
+        painter.drawPixmap(QPointF(0, 0), QPixmap(self.pixmap).scaled(100, 100))
+
+    def mousePressEvent(self, event: QGraphicsSceneMouseEvent):
         self.infoWindow.show()
-
-    def assign(self, robot: Robot):
-        print("error in cell.py :", robot.robotNum,
-              "called assign function on empty cell")
 
 
 class CellInfoWindow(QWidget):
     def __init__(self, coordinate, cellType) -> None:
         super().__init__(None)
-        self.setWindowTitle('new simulation')
+        self.setWindowTitle("new simulation")
         self.setLayout(QVBoxLayout())
 
         self.layout().addWidget(QLabel(f"Coordinate X : {coordinate[0]}"))
@@ -41,7 +89,7 @@ class CellInfoWindow(QWidget):
 
 class StationCell(Cell):
     color = Qt.blue
-    cellType = 'workstation'
+    cellType = "workstation"
 
     def __init__(self, x, y, w, h, chutesPos: list[tuple[int, int]]):
         super().__init__(x, y, w, h, self.color)
@@ -53,22 +101,20 @@ class StationCell(Cell):
         return self.chutesPos[next]
 
     def assign(self, robot: Robot):
-        route = evaluateRouteToCell(
-            robot.route[len(robot.route)-1], self.nextCargo())
+        route = evaluateRouteToCell(robot.route[len(robot.route) - 1], self.nextCargo())
         robot.assignMission(route, 8)
 
 
 class StationQueueCell(Cell):
     color = Qt.darkBlue
-    cellType = 'buffer'
+    cellType = "buffer"
 
     def __init__(self, x, y, w, h, nextQueue: tuple[int, int]):
         super().__init__(x, y, w, h, self.color)
         self.nextQueue = nextQueue
 
     def assign(self, robot: Robot):
-        route = evaluateRouteToCell(
-            robot.route[len(robot.route)-1], self.nextQueue)
+        route = evaluateRouteToCell(robot.route[len(robot.route) - 1], self.nextQueue)
         robot.assignMission(route, 0)
 
 
@@ -81,8 +127,7 @@ class ChuteCell(Cell):
         self.returnPos = returnPos
 
     def assign(self, robot: Robot):
-        route = evaluateRouteToCell(
-            robot.route[len(robot.route)-1], self.returnPos)
+        route = evaluateRouteToCell(robot.route[len(robot.route) - 1], self.returnPos)
         robot.assignMission(route, 0)
 
 

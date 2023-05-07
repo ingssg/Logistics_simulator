@@ -77,23 +77,63 @@ def facingEach(a: NodePos, b: NodePos):
     return (a.direction + b.direction) % 2 == 0
 
 
-graphx = 0
-graphy = 0
-cells = {}
+warehouse: Warehouse
 
 
 def registerMap():
+    global map
     map = queryMap()
-    global graphx
-    global graphy
-    global cells
-    cells = map.cells
-    graphx = map.grid[0]
-    graphy = map.grid[1]
+
+
+def gen(tempBlocked: list[tuple[int, int]] = []):
+    raw_cells = warehouse.cells
+    edges: dict[NodePos, list[tuple[NodePos, int]]] = {}
+
+    nodes = list(
+        filter(lambda x: x.cellType != "block" or x.pos not in tempBlocked, raw_cells)
+    )
+    orientedNodes: list[NodePos] = []
+
+    # create 4 nodes per point
+    # create all rotation edge
+    for n in nodes:
+        for i in range(4):
+            add = NodePos(*n.pos, i)
+            orientedNodes.append(add)
+
+            if add.direction == Direction.N:
+                clockwise, counterwise = Direction.E, Direction.W
+            elif add.direction == Direction.W:
+                clockwise, counterwise = Direction.N, Direction.S
+            else:
+                clockwise, counterwise = add.direction + 1, add.direction - 1
+
+            edges[add] = [
+                (NodePos(add.x, add.y, clockwise), 10),
+                (NodePos(add.x, add.y, counterwise), 10),
+            ]
+
+    # create edge with outdirs
+    # n s w e
+    for n in nodes:
+        if n.outDir[0] == 1:
+            if dest := NodePos(n.pos[0], n.pos[1] - 1, Direction.N) in orientedNodes:
+                edges[NodePos(*n.pos, Direction.N)].append((dest, 10))
+        if n.outDir[1] == 1:
+            if dest := NodePos(n.pos[0], n.pos[1] + 1, Direction.S) in orientedNodes:
+                edges[NodePos(*n.pos, Direction.S)].append((dest, 10))
+        if n.outDir[2] == 1:
+            if dest := NodePos(n.pos[0] - 1, n.pos[1], Direction.W) in orientedNodes:
+                edges[NodePos(*n.pos, Direction.W)].append((dest, 10))
+        if n.outDir[3] == 1:
+            if dest := NodePos(n.pos[0] + 1, n.pos[1], Direction.E) in orientedNodes:
+                edges[NodePos(*n.pos, Direction.E)].append((dest, 10))
+
+    return orientedNodes, edges
 
 
 def generateGraph(tempBlocked: list[tuple[int, int]] = []):
-    nodes = [c.pos for c in cells]
+    nodes = [c.pos for c in map.cells]
     edges: dict[NodePos, list[tuple[NodePos, int]]] = {}
     orientedNodes: list[NodePos] = []
 

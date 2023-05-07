@@ -1,18 +1,17 @@
 from random import randrange
-from typing import Optional
 
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QColor, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QGraphicsObject,
-    QGraphicsPixmapItem,
-    QGraphicsRectItem,
     QGraphicsSceneMouseEvent,
     QLabel,
     QStyleOptionGraphicsItem,
     QVBoxLayout,
     QWidget,
 )
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon
 
 from simulator.pathfinding import (
     evaluateRouteToCell,
@@ -81,6 +80,9 @@ class CellInfoWindow(QWidget):
         super().__init__(None)
         self.setWindowTitle("new simulation")
         self.setLayout(QVBoxLayout())
+
+        self.setWindowIcon(QIcon("./image/info.png"))
+        self.setStyleSheet("background-color:rgb(1,35,38); color:rgb(82,242,226);")
 
         self.layout().addWidget(QLabel(f"Coordinate X : {coordinate[0]}"))
         self.layout().addWidget(QLabel(f"Coordinate Y : {coordinate[1]}"))

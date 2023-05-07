@@ -1,4 +1,5 @@
 from PySide6.QtCore import Slot
+from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QLabel, QPushButton, QTabBar, QTabWidget
 from result.result_table import ResultTable
 from result.throughput_robot import ThroughputRobot
@@ -14,6 +15,8 @@ class ResultTab(QTabWidget):
         observer = SimulationObserver.getInstance()
         observer.simulationReported.connect(self.addResult)
         observer.simulationRemoved.connect(self.removeCharts)
+
+        self.setFont(QFont('나눔고딕 ExtraBold', 10))
 
     @Slot(SimulationReport)
     def addResult(self, report: SimulationReport):

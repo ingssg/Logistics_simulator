@@ -19,7 +19,6 @@ CELLSIZE = 100
 SPEED = 500
 
 
-
 class Simulator(QWidget):
     simulationFinished = Signal(SimulationReport)
 

@@ -10,21 +10,24 @@ from simulation.simulation_observer import SimulationReport
 class ThroughputRobot(QChartView):
     def __init__(self, report: SimulationReport, parent=None):
         super().__init__(parent)
-        # report.robots = [1, 2, 3, 4]
         self.series = QBarSeries()
         set1 = QBarSet("Throughput")
-        set1.append(report.robots)
-        set1.selectBar(0)
-        set1.setSelectedColor(Qt.red)
+        set1.append([r[1] for r in report.robots])
+
         self.series.append(set1)
 
         self.dataChart = QChart()
-        self.dataChart.setTitle('Simulation Result - Throughput')
+        self.dataChart.setTitle("Simulation Result - Throughput")
         self.dataChart.addSeries(self.series)
         self.dataChart.setAnimationOptions(QtCharts.QChart.SeriesAnimations)
 
         self.axisX = QtCharts.QBarCategoryAxis()
-        self.axisX.append([f'Robot {i}' for i in range(len(report.robots))])
+        self.axisX.append(
+            [
+                f"{'dump' if report.robots[i][0]==1 else 'belt'} {i}"
+                for i in range(len(report.robots))
+            ]
+        )
         self.dataChart.addAxis(self.axisX, Qt.AlignBottom)
         self.series.attachAxis(self.axisX)
 

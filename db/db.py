@@ -18,10 +18,36 @@ def registerWarehouse(name):
 
 
 @dataclass
+class _Cell:
+    cellType: str
+    pos: tuple[int, int]
+    outDir: tuple[int, int, int, int]
+
+
+@dataclass
 class Warehouse:
     grid: tuple[int, int]
-    cellDirs: list[tuple]
-    functionCells: dict[str, tuple]
+    cells: list[_Cell]
+
+    def __post_init__(self):
+        self.cells = [_Cell(getCellType(c[0]), c[1], c[2]) for c in self.cells]
+
+
+def getCellType(n: int) -> str:
+    if n == 1:
+        return "chargingstation"
+    elif n == 2:
+        return "chute"
+    elif n == 3:
+        return "workstation"
+    elif n == 4:
+        return "buffer"
+    elif n == 5:
+        return "block"
+    elif n == 7:
+        return "cell"
+    else:
+        return "cell"
 
 
 def queryMap():
@@ -36,16 +62,7 @@ def queryMap():
         grid = cur.fetchone()
 
         cur.execute("select * from cell where grid_id=%s", [warehouse_name])
-        ncells = cur.fetchall()
-        ncells = list(map(lambda x: x[4:10], ncells))
+        rawcells = cur.fetchall()
+        cells = {(x[2], (x[5], x[4]), x[6:10]) for x in rawcells}
 
-        # X and Y converted!!
-        cells: dict[str, tuple] = {}
-        for l in dblist:
-            cur.execute(
-                "select locationy, locationx from {} where grid_id=%s".format(l),
-                [warehouse_name],
-            )
-            cells[l] = cur.fetchall()
-
-        return Warehouse(grid, ncells, cells)
+        return Warehouse(grid, cells)

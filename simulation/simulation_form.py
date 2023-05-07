@@ -1,5 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
+import sys
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, Signal
@@ -140,8 +141,8 @@ class SimulationForm(QWidget):
         else:
             return True
 
-    def terminate(self):
-        self.simulator = None
+    def terminate(self, r):
+        self.simulator.deleteLater()
 
     def removeTabHandler(self):
         index = self.parent().indexOf(self)

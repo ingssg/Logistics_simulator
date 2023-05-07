@@ -101,6 +101,13 @@ def generateGraph(tempBlocked: list[tuple[int, int]] = []):
     for b in tempBlocked:
         nodes.remove(b)
 
+    """
+    그냥 _cell list를 가지고 시작
+    한 셀을 네 방향으로 나누는 거는 만들어놓고
+    회전 에지도 만들어
+    나가는방향 따라서 나가는 에지만 만들어
+    """
+
     """셀의 방향 대로 에지 넣어야 함
     지금은 아래 루프에서 에지 넣고 있음 시계방향에지도
     만약 남북으로만 가는 셀이라면

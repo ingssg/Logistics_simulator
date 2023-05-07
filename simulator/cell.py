@@ -59,7 +59,7 @@ class Cell(QGraphicsObject):
         elif outdir == (1, 1, 1, 1):
             self.pixmap = IMAGE_A
         else:
-            self.pixmap = IMAGE_N
+            self.pixmap = IMAGE_A
 
         self.setAcceptHoverEvents(True)
         self.infoWindow = CellInfoWindow(self.pos().toTuple(), cellType)

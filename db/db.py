@@ -78,18 +78,18 @@ def colorText(color):
             "select * from grid where grid_id = %s", [warehouse_name]
     )
         cellColor = cur.fetchone()
-        for i in range (13, 18):
+        for i in range(12, 17):
             if cellColor[i] == color:
                 break
-        if i-13 == 0 :
+        if i-12 == 0:
             return "충전"
-        elif i-13 == 1 :
+        elif i-12 == 1:
             return "슈트"
-        elif i-13 == 2 :
+        elif i-12 == 2:
             return "워크스테이션" 
-        elif i-13 == 3 :
+        elif i-12 == 3:
             return "버퍼" 
-        elif i-13 == 4 :
+        elif i-12 == 4:
             return "블락" 
         
 def cellColor(cellnum):
@@ -102,8 +102,7 @@ def cellColor(cellnum):
             "select * from grid where grid_id = %s", [warehouse_name]
     )
         cell_Color = cur.fetchone()
-        Cell_num = cellnum+12
-        
+        Cell_num = cellnum+11
         if cell_Color[Cell_num] == 1:
             return "yellow"
         elif cell_Color[Cell_num] == 2:

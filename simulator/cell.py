@@ -52,7 +52,7 @@ class Cell(QGraphicsObject):
         elif outdir == (1, 1, 1, 1):
             self.pixmap = IMAGE_A
         else:
-            self.pixmap = IMAGE_N
+            self.pixmap = None
 
         self.setAcceptHoverEvents(True)
         self.infoWindow = CellInfoWindow(self.pos().toTuple(), cellType)
@@ -62,7 +62,8 @@ class Cell(QGraphicsObject):
 
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget):
         painter.fillRect(self.boundingRect(), self.color)
-        painter.drawPixmap(QPointF(0, 0), QPixmap(self.pixmap).scaled(100, 100))
+        if self.pixmap != None:
+            painter.drawPixmap(QPointF(0, 0), QPixmap(self.pixmap).scaled(100, 100))
 
     def mousePressEvent(self, event: QGraphicsSceneMouseEvent):
         self.infoWindow.show()

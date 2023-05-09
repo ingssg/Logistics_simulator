@@ -22,13 +22,13 @@ from simulator.pathfinding import registerMap
 
 conn = pymysql.connect(
     host="127.0.0.1",
-    port=3307,
+    port=3306,
     user="root",
-    password="dormammu",
+    password="root",
     db="lghpdb",
     charset="utf8",
     client_flag=CLIENT.MULTI_STATEMENTS,
-    autocommit=True
+    autocommit=True,
 )
 cur = conn.cursor()
 
@@ -40,11 +40,13 @@ d_path = os.path.join(current_path, "image", "d_arrow.png")
 r_l_path = os.path.join(current_path, "image", "r_l_arrow.png")
 u_d_path = os.path.join(current_path, "image", "u_d_arrow.png")
 a_path = os.path.join(current_path, "image", "all_arrow.png")
-logo_path=os.path.join(current_path, "image","logo_trans.png")
+logo_path = os.path.join(current_path, "image", "logo_trans.png")
+
 
 def resource_path(relative_path):
     base_path = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(base_path, relative_path)
+
 
 def dir_img(path, text):
     pixmap = QPixmap(path)
@@ -60,6 +62,7 @@ def dir_img(path, text):
     item.setTextAlignment(Qt.AlignCenter)
     return item
 
+
 form = resource_path("homePage.ui")
 form_class = loadUiType(form)[0]
 form_second = resource_path("simul.ui")
@@ -73,7 +76,7 @@ class WindowClass(QMainWindow, form_class):
         super().__init__()
         self.setupUi(self)
         self.setWindowTitle("시뮬레이터")
-        self.setWindowIcon(QIcon('./image/logo.png'))
+        self.setWindowIcon(QIcon("./image/logo.png"))
         self.setGeometry(100, 50, 1000, 550)
         pixmap = QPixmap(logo_path)
         self.logolabel.setPixmap(pixmap)
@@ -94,13 +97,15 @@ class secondwindow(QDialog, QWidget, form_secondwindow):
         super(secondwindow, self).__init__()
         self.setupUi(self)
         self.setWindowTitle("시뮬레이터")
-        self.setWindowIcon(QIcon('./image/logo.png'))
+        self.setWindowIcon(QIcon("./image/logo.png"))
         self.setGeometry(100, 50, 1000, 550)
         self.show()
 
         ###   overview  tab ###
         # overview-1.map 파일 미리보기
-        file = QFileDialog.getOpenFileName(self, "", "", "xlsx파일 (*.xlsx);; All File(*)")  # !!저장파일 타입 정해지면, 확장자에 추가
+        file = QFileDialog.getOpenFileName(
+            self, "", "", "xlsx파일 (*.xlsx);; All File(*)"
+        )  # !!저장파일 타입 정해지면, 확장자에 추가
         global filename  # 선언, 할당 분리
         filename = file[0]
         load_xlsx = openpyxl.load_workbook(file[0], data_only=True)
@@ -145,7 +150,7 @@ class secondwindow(QDialog, QWidget, form_secondwindow):
         cnum = 1
         for i in range(1, row + 1):
             for j in range(1, col + 1):
-                cell_num = str(file_name) + '_c' + str(cnum).zfill(4)
+                cell_num = str(file_name) + "_c" + str(cnum).zfill(4)
                 cnum = cnum + 1
                 sql = "SELECT * FROM cell " + "WHERE Cell_ID = %s;"
                 cur.execute(sql, [cell_num])
@@ -174,19 +179,19 @@ class secondwindow(QDialog, QWidget, form_secondwindow):
                     item = dir_img(r_path, "→")
                     self.map.setItem(i - 1, j - 1, item)
 
-                if load_sheet.cell(i, j).fill.start_color.index == 'FFFFFF00':
+                if load_sheet.cell(i, j).fill.start_color.index == "FFFFFF00":
                     self.map.item(i - 1, j - 1).setBackground(Qt.yellow)
                     self.map.item(i - 1, j - 1).setForeground(Qt.black)
-                elif load_sheet.cell(i, j).fill.start_color.index == 'FF0000FF':
+                elif load_sheet.cell(i, j).fill.start_color.index == "FF0000FF":
                     self.map.item(i - 1, j - 1).setBackground(Qt.darkBlue)
                     self.map.item(i - 1, j - 1).setForeground(Qt.white)
-                elif load_sheet.cell(i, j).fill.start_color.index == 'FF008000':
+                elif load_sheet.cell(i, j).fill.start_color.index == "FF008000":
                     self.map.item(i - 1, j - 1).setBackground(Qt.darkGreen)
                     self.map.item(i - 1, j - 1).setForeground(Qt.white)
-                elif load_sheet.cell(i, j).fill.start_color.index == 'FFFF0000':
+                elif load_sheet.cell(i, j).fill.start_color.index == "FFFF0000":
                     self.map.item(i - 1, j - 1).setBackground(Qt.red)
                     self.map.item(i - 1, j - 1).setForeground(Qt.white)
-                elif load_sheet.cell(i, j).fill.start_color.index == 'FF808080':
+                elif load_sheet.cell(i, j).fill.start_color.index == "FF808080":
                     self.map.item(i - 1, j - 1).setBackground(Qt.darkGray)
                     self.map.item(i - 1, j - 1).setForeground(Qt.white)
                 else:
@@ -198,87 +203,87 @@ class secondwindow(QDialog, QWidget, form_secondwindow):
         file_grid = cur.fetchone()
 
         # 충전셀 색상
-        if file_grid[12] == 1:
+        if file_grid[13] == 1:
             self.color_charge.setText("Yellow")
             self.c_charge.setStyleSheet("background:yellow")
-        elif file_grid[12] == 2:
+        elif file_grid[13] == 2:
             self.color_charge.setText("Red")
             self.c_charge.setStyleSheet("background:red")
-        elif file_grid[12] == 3:
+        elif file_grid[13] == 3:
             self.color_charge.setText("Green")
             self.c_charge.setStyleSheet("background:green")
-        elif file_grid[12] == 4:
+        elif file_grid[13] == 4:
             self.color_charge.setText("Blue")
             self.c_charge.setStyleSheet("background:blue")
-        elif file_grid[12] == 5:
+        elif file_grid[13] == 5:
             self.color_charge.setText("Grey")
             self.c_charge.setStyleSheet("background:darkgrey")
 
         # 슈트셀 색상
-        if file_grid[13] == 1:
+        if file_grid[14] == 1:
             self.color_chute.setText("Yellow")
             self.c_chute.setStyleSheet("background:yellow")
-        elif file_grid[13] == 2:
+        elif file_grid[14] == 2:
             self.color_chute.setText("Red")
             self.c_chute.setStyleSheet("background:red")
-        elif file_grid[13] == 3:
+        elif file_grid[14] == 3:
             self.color_chute.setText("Green")
             self.c_chute.setStyleSheet("background:green")
-        elif file_grid[13] == 4:
+        elif file_grid[14] == 4:
             self.color_chute.setText("Blue")
             self.c_chute.setStyleSheet("background:blue")
-        elif file_grid[13] == 5:
+        elif file_grid[14] == 5:
             self.color_chute.setText("Grey")
             self.c_chute.setStyleSheet("background:darkgrey")
 
         # 워크스테이션셀 색상
-        if file_grid[14] == 1:
+        if file_grid[15] == 1:
             self.color_ws.setText("Yellow")
             self.c_ws.setStyleSheet("background:yellow")
-        elif file_grid[14] == 2:
+        elif file_grid[15] == 2:
             self.color_ws.setText("Red")
             self.c_ws.setStyleSheet("background:red")
-        elif file_grid[14] == 3:
+        elif file_grid[15] == 3:
             self.color_ws.setText("Green")
             self.c_ws.setStyleSheet("background:green")
-        elif file_grid[14] == 4:
+        elif file_grid[15] == 4:
             self.color_ws.setText("Blue")
             self.c_ws.setStyleSheet("background:blue")
-        elif file_grid[14] == 5:
+        elif file_grid[15] == 5:
             self.color_ws.setText("Grey")
             self.c_ws.setStyleSheet("background:darkgrey")
 
         # 버퍼셀 색상
-        if file_grid[15] == 1:
+        if file_grid[16] == 1:
             self.color_buffer.setText("Yellow")
             self.c_buffer.setStyleSheet("background:yellow")
-        elif file_grid[15] == 2:
+        elif file_grid[16] == 2:
             self.color_buffer.setText("Red")
             self.c_buffer.setStyleSheet("background:red")
-        elif file_grid[15] == 3:
+        elif file_grid[16] == 3:
             self.color_buffer.setText("Green")
             self.c_buffer.setStyleSheet("background:green")
-        elif file_grid[15] == 4:
+        elif file_grid[16] == 4:
             self.color_buffer.setText("Blue")
             self.c_buffer.setStyleSheet("background:blue")
-        elif file_grid[15] == 5:
+        elif file_grid[16] == 5:
             self.color_buffer.setText("Grey")
             self.c_buffer.setStyleSheet("background:darkgrey")
 
         # 블락셀 색상
-        if file_grid[16] == 1:
+        if file_grid[17] == 1:
             self.color_block.setText("Yellow")
             self.c_block.setStyleSheet("background:yellow")
-        elif file_grid[16] == 2:
+        elif file_grid[17] == 2:
             self.color_block.setText("Red")
             self.c_block.setStyleSheet("background:red")
-        elif file_grid[16] == 3:
+        elif file_grid[17] == 3:
             self.color_block.setText("Green")
             self.c_block.setStyleSheet("background:green")
-        elif file_grid[16] == 4:
+        elif file_grid[17] == 4:
             self.color_block.setText("Blue")
             self.c_block.setStyleSheet("background:blue")
-        elif file_grid[16] == 5:
+        elif file_grid[17] == 5:
             self.color_block.setText("Grey")
             self.c_block.setStyleSheet("background:darkgrey")
 

@@ -12,7 +12,7 @@ from simulator.cell import Cell
 if TYPE_CHECKING:
     from simulation.simulation_form import SimulationParameter
 from simulation.simulation_observer import SimulationObserver, SimulationReport
-from simulator.pathfinding import Direction, NodePos, evaluateRouteToCell
+from simulator.pathfinding import Direction, NodePos, evaluateRouteToCell, gen
 from simulator.robot import Robot
 
 CELLSIZE = 100
@@ -25,7 +25,7 @@ class Simulator(QWidget):
     def __init__(self, params: SimulationParameter) -> None:
         super().__init__(None)
         self.setWindowTitle(params.name)
-        self.setWindowIcon(QIcon('./image/logo.png'))
+        self.setWindowIcon(QIcon("./image/logo.png"))
         self.setGeometry(130, 50, 1000, 550)
         self.setStyleSheet("background-color:rgb(1,35,38); color:rgb(82,242,226);")
         self.setLayout(QHBoxLayout())
@@ -54,10 +54,15 @@ class Simulator(QWidget):
         )
         self.chute = list(filter(lambda c: c.cellType == "chute", self.map.cells))
         self.buffer = list(filter(lambda c: c.cellType == "buffer", self.map.cells))
-        for i in range(params.belt):
-            self.deployRobot(NodePos(*self.buffer[i].pos, Direction.E), 0)
-        for i in range(params.dump):
-            self.deployRobot(NodePos(*self.buffer[i].pos, Direction.E), 1)
+        # for i in range(params.belt):
+        #     self.deployRobot(NodePos(*self.buffer[i].pos, Direction.E), 0)
+        # for i in range(params.dump):
+        #     self.deployRobot(NodePos(*self.buffer[i].pos, Direction.E), 1)
+        for i in range(params.belt + params.dump):
+            if i == params.belt:
+                self.deployRobot(NodePos(*self.buffer[i].pos, Direction.E), 1)
+            else:
+                self.deployRobot(NodePos(*self.buffer[i].pos, Direction.E), 0)
 
         self.logistics = params.logistics
 
@@ -93,7 +98,7 @@ class Simulator(QWidget):
         elapsed = time() - self.time
         process = [(r.robotType, r.processCount) for r in self.robots]
         self.simulationFinished.emit(
-            SimulationReport(self.windowTitle(), elapsed, process, self.timeSeries)
+            SimulationReport(self.windowTitle(), elapsed, process, self.timeSeries, 0)
         )
 
     def closeEvent(self, event: QCloseEvent):

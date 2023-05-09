@@ -77,29 +77,76 @@ def facingEach(a: NodePos, b: NodePos):
     return (a.direction + b.direction) % 2 == 0
 
 
-graphx = 0
-graphy = 0
-cells = {}
+warehouse: Warehouse
 
 
 def registerMap():
-    map = queryMap()
-    global graphx
-    global graphy
-    global cells
-    cells = map.cells
-    graphx = map.grid[0]
-    graphy = map.grid[1]
+    global warehouse
+    warehouse = queryMap()
+
+
+def gen(tempBlocked: list[tuple[int, int]] = []):
+    raw_cells = warehouse.cells
+    edges: dict[NodePos, list[tuple[NodePos, int]]] = {}
+
+    nodes = list(
+        filter(lambda x: x.cellType != "block" or x.pos not in tempBlocked, raw_cells)
+    )
+    orientedNodes: list[NodePos] = []
+
+    # create 4 nodes per point
+    # create all rotation edge
+    for n in nodes:
+        for i in range(4):
+            add = NodePos(*n.pos, i)
+            orientedNodes.append(add)
+
+            if add.direction == Direction.N:
+                clockwise, counterwise = Direction.E, Direction.W
+            elif add.direction == Direction.W:
+                clockwise, counterwise = Direction.N, Direction.S
+            else:
+                clockwise, counterwise = add.direction + 1, add.direction - 1
+
+            edges[add] = [
+                (NodePos(add.x, add.y, clockwise), 10),
+                (NodePos(add.x, add.y, counterwise), 10),
+            ]
+
+    # create edge with outdirs
+    # n s w e
+    for n in nodes:
+        if n.outDir[0] == 1:
+            if (dest := NodePos(n.pos[0], n.pos[1] - 1, Direction.N)) in orientedNodes:
+                edges[NodePos(*n.pos, Direction.N)].append((dest, 10))
+        if n.outDir[1] == 1:
+            if (dest := NodePos(n.pos[0], n.pos[1] + 1, Direction.S)) in orientedNodes:
+                edges[NodePos(*n.pos, Direction.S)].append((dest, 10))
+        if n.outDir[2] == 1:
+            if (dest := NodePos(n.pos[0] - 1, n.pos[1], Direction.W)) in orientedNodes:
+                edges[NodePos(*n.pos, Direction.W)].append((dest, 10))
+        if n.outDir[3] == 1:
+            if (dest := NodePos(n.pos[0] + 1, n.pos[1], Direction.E)) in orientedNodes:
+                edges[NodePos(*n.pos, Direction.E)].append((dest, 10))
+
+    return orientedNodes, edges
 
 
 def generateGraph(tempBlocked: list[tuple[int, int]] = []):
-    nodes = [c.pos for c in cells]
+    nodes = [c.pos for c in warehouse.cells]
     edges: dict[NodePos, list[tuple[NodePos, int]]] = {}
     orientedNodes: list[NodePos] = []
 
     # 블락 제거
     for b in tempBlocked:
         nodes.remove(b)
+
+    """
+    그냥 _cell list를 가지고 시작
+    한 셀을 네 방향으로 나누는 거는 만들어놓고
+    회전 에지도 만들어
+    나가는방향 따라서 나가는 에지만 만들어
+    """
 
     """셀의 방향 대로 에지 넣어야 함
     지금은 아래 루프에서 에지 넣고 있음 시계방향에지도
@@ -188,13 +235,15 @@ def backTrack(prevs: dict[NodePos, NodePos], source: NodePos, destination: NodeP
 
 
 def evaluateRoute(src: NodePos, dest: NodePos, tempBlocked: list[tuple[int, int]] = []):
-    nodes, edges = generateGraph(tempBlocked=tempBlocked)
+    nodes, edges = gen(tempBlocked=tempBlocked)
+    # nodes, edges = generateGraph(tempBlocked=tempBlocked)
     _, prevs = dijkstra(nodes, edges, src)
     return backTrack(prevs, src, dest)
 
 
 def evaluateRouteToCell(src: NodePos, dest: tuple[int, int]):
-    nodes, edges = generateGraph()
+    nodes, edges = gen()
+    # nodes, edges = generateGraph()
     distances, prevs = dijkstra(nodes, edges, src)
     min = (None, float("inf"))
     for i in range(4):

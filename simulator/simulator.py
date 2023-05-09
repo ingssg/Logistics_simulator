@@ -3,10 +3,10 @@ from typing import TYPE_CHECKING
 from random import randint
 from time import time
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
-from PySide6.QtGui import QCloseEvent, QIcon
+from PySide6.QtGui import QCloseEvent, QIcon, QColor, QFont
 from PySide6.QtWidgets import QGraphicsScene, QGraphicsView
 from PySide6.QtCore import QTimer, Qt, Signal, Slot
-from db.db import Warehouse, queryMap
+from db.db import Warehouse, queryMap, colorText
 from simulator.cell import Cell
 
 if TYPE_CHECKING:
@@ -67,11 +67,31 @@ class Simulator(QWidget):
         self.logistics = params.logistics
 
         sideInfo = QWidget()
-        sideInfo.setLayout(QVBoxLayout())
-        self.infoLabel = QLabel(f"{self.logistics}")
-        sideInfo.layout().addWidget(self.infoLabel)
-        self.layout().addWidget(sideInfo)
+        sideInfo_layout = QVBoxLayout()
+        sideInfo.setLayout(sideInfo_layout)
+        sideInfo.setFixedSize(200, 500)
+        
+        # 빨강 : 2
+        color1 = QColor(255, 0, 0)
+        self.add_color_info(sideInfo_layout, color1, colorText(2))
 
+        # 노랑 : 1
+        color2 = QColor(255, 255, 0)
+        self.add_color_info(sideInfo_layout, color2, colorText(1))
+
+        # 초록 : 3
+        color3 = QColor(0, 255, 0)
+        self.add_color_info(sideInfo_layout, color3, colorText(3))
+        
+        # 파랑 : 4
+        color4 = QColor(0, 0, 255)
+        self.add_color_info(sideInfo_layout, color4, colorText(4))
+        
+        # 다크그레이 : 5
+        color5 = QColor(169, 169, 169)
+        self.add_color_info(sideInfo_layout, color5, colorText(5))
+        
+        self.layout().addWidget(sideInfo)
         self.start()
 
     def simulationFinishHandler(self):
@@ -140,3 +160,19 @@ class Simulator(QWidget):
 
         for c in map.cells:
             self.addCell(Cell(c.pos, c.outDir, c.cellType))
+            
+    def add_color_info(self, layout, color, text):
+        color_layout = QHBoxLayout()
+        color_label = QLabel()
+        color_label.setStyleSheet(f"background-color: {color.name()};")
+        color_label.setFixedSize(50, 50)
+        color_layout.addWidget(color_label)
+        label = QLabel(text)
+        font = QFont()
+        font.setPointSize(15)
+        label.setFont(font)
+        color_layout.addWidget(label)
+        color_layout.setStretchFactor(color_label, 1)
+        color_layout.setStretchFactor(QLabel(text), 3)
+        layout.addLayout(color_layout)
+        layout.setSpacing(3)

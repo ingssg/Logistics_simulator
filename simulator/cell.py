@@ -1,7 +1,7 @@
 from random import randrange
 
 from PySide6.QtCore import QPointF, QRectF, Qt
-from PySide6.QtGui import QColor, QPainter, QPixmap
+from PySide6.QtGui import QPainter, QPixmap
 from PySide6.QtWidgets import (
     QGraphicsObject,
     QGraphicsSceneMouseEvent,
@@ -17,6 +17,7 @@ from simulator.pathfinding import (
     evaluateRouteToCell,
 )
 from simulator.robot import Robot
+from db.db import colorDict
 
 IMAGE_N = "image/u_arrow.png"
 IMAGE_S = "image/d_arrow.png"
@@ -26,15 +27,6 @@ IMAGE_H = "image/r_l_arrow.png"
 IMAGE_V = "image/u_d_arrow.png"
 IMAGE_A = "image/all_arrow.png"
 
-cell_colors = {
-    "cell": QColor(0, 0, 0, 0),
-    "chute": QColor("red"),
-    "buffer": QColor("blue"),
-    "workstation": QColor("green"),
-    "block": QColor("lightgray"),
-    "chargingstation": QColor("yellow"),
-}
-
 
 class Cell(QGraphicsObject):
     def __init__(self, loc, outdir, cellType="cell", parent=None):
@@ -42,6 +34,7 @@ class Cell(QGraphicsObject):
         self.setPos(loc[0] * 100, loc[1] * 100)
         self.nodeLoc = loc
 
+        cell_colors = colorDict()
         self.cellType = cellType
         self.color = cell_colors[cellType]
         if outdir == (1, 0, 0, 0):

@@ -81,8 +81,8 @@ warehouse: Warehouse
 
 
 def registerMap():
-    global map
-    map = queryMap()
+    global warehouse
+    warehouse = queryMap()
 
 
 def gen(tempBlocked: list[tuple[int, int]] = []):
@@ -117,23 +117,23 @@ def gen(tempBlocked: list[tuple[int, int]] = []):
     # n s w e
     for n in nodes:
         if n.outDir[0] == 1:
-            if dest := NodePos(n.pos[0], n.pos[1] - 1, Direction.N) in orientedNodes:
+            if (dest := NodePos(n.pos[0], n.pos[1] - 1, Direction.N)) in orientedNodes:
                 edges[NodePos(*n.pos, Direction.N)].append((dest, 10))
         if n.outDir[1] == 1:
-            if dest := NodePos(n.pos[0], n.pos[1] + 1, Direction.S) in orientedNodes:
+            if (dest := NodePos(n.pos[0], n.pos[1] + 1, Direction.S)) in orientedNodes:
                 edges[NodePos(*n.pos, Direction.S)].append((dest, 10))
         if n.outDir[2] == 1:
-            if dest := NodePos(n.pos[0] - 1, n.pos[1], Direction.W) in orientedNodes:
+            if (dest := NodePos(n.pos[0] - 1, n.pos[1], Direction.W)) in orientedNodes:
                 edges[NodePos(*n.pos, Direction.W)].append((dest, 10))
         if n.outDir[3] == 1:
-            if dest := NodePos(n.pos[0] + 1, n.pos[1], Direction.E) in orientedNodes:
+            if (dest := NodePos(n.pos[0] + 1, n.pos[1], Direction.E)) in orientedNodes:
                 edges[NodePos(*n.pos, Direction.E)].append((dest, 10))
 
     return orientedNodes, edges
 
 
 def generateGraph(tempBlocked: list[tuple[int, int]] = []):
-    nodes = [c.pos for c in map.cells]
+    nodes = [c.pos for c in warehouse.cells]
     edges: dict[NodePos, list[tuple[NodePos, int]]] = {}
     orientedNodes: list[NodePos] = []
 
@@ -235,13 +235,15 @@ def backTrack(prevs: dict[NodePos, NodePos], source: NodePos, destination: NodeP
 
 
 def evaluateRoute(src: NodePos, dest: NodePos, tempBlocked: list[tuple[int, int]] = []):
-    nodes, edges = generateGraph(tempBlocked=tempBlocked)
+    nodes, edges = gen(tempBlocked=tempBlocked)
+    # nodes, edges = generateGraph(tempBlocked=tempBlocked)
     _, prevs = dijkstra(nodes, edges, src)
     return backTrack(prevs, src, dest)
 
 
 def evaluateRouteToCell(src: NodePos, dest: tuple[int, int]):
-    nodes, edges = generateGraph()
+    nodes, edges = gen()
+    # nodes, edges = generateGraph()
     distances, prevs = dijkstra(nodes, edges, src)
     min = (None, float("inf"))
     for i in range(4):

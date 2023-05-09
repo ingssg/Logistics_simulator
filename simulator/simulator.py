@@ -28,8 +28,8 @@ class Simulator(QWidget):
         self.setWindowIcon(QIcon("./image/logo.png"))
         self.setGeometry(130, 50, 1000, 550)
         self.setStyleSheet("background-color:rgb(1,35,38); color:rgb(82,242,226);")
-        self.setLayout(QHBoxLayout())
 
+        self.setLayout(QHBoxLayout())
         self.scene = QGraphicsScene()
         self.view = QGraphicsView(self.scene, self)
         self.layout().addWidget(self.view)
@@ -54,10 +54,10 @@ class Simulator(QWidget):
         )
         self.chute = list(filter(lambda c: c.cellType == "chute", self.map.cells))
         self.buffer = list(filter(lambda c: c.cellType == "buffer", self.map.cells))
-        # for i in range(params.belt):
-        #     self.deployRobot(NodePos(*self.buffer[i].pos, Direction.E), 0)
-        # for i in range(params.dump):
-        #     self.deployRobot(NodePos(*self.buffer[i].pos, Direction.E), 1)
+        self.chargingstation = list(
+            filter(lambda c: c.cellType == "chargingstation", self.map.cells)
+        )
+
         for i in range(params.belt + params.dump):
             if i == params.belt:
                 self.deployRobot(NodePos(*self.buffer[i].pos, Direction.E), 1)
@@ -65,33 +65,30 @@ class Simulator(QWidget):
                 self.deployRobot(NodePos(*self.buffer[i].pos, Direction.E), 0)
 
         self.logistics = params.logistics
+        self.logisticsLeft = params.logistics
 
         sideInfo = QWidget()
         sideInfo_layout = QVBoxLayout()
         sideInfo.setLayout(sideInfo_layout)
         sideInfo.setFixedSize(200, 500)
-        
         # 빨강 : 2
         color1 = QColor(255, 0, 0)
         self.add_color_info(sideInfo_layout, color1, colorText(2))
-
         # 노랑 : 1
         color2 = QColor(255, 255, 0)
         self.add_color_info(sideInfo_layout, color2, colorText(1))
-
         # 초록 : 3
         color3 = QColor(0, 255, 0)
         self.add_color_info(sideInfo_layout, color3, colorText(3))
-        
         # 파랑 : 4
         color4 = QColor(0, 0, 255)
         self.add_color_info(sideInfo_layout, color4, colorText(4))
-        
         # 다크그레이 : 5
         color5 = QColor(169, 169, 169)
         self.add_color_info(sideInfo_layout, color5, colorText(5))
-        
+
         self.layout().addWidget(sideInfo)
+
         self.start()
 
     def simulationFinishHandler(self):
@@ -109,16 +106,27 @@ class Simulator(QWidget):
         for cell in self.cells:
             if cell.nodeLoc == position.point().toTuple():
                 rbt = self.robots[num]
+                if rbt.power < 20:
+                    nextcell = self.chargingstation[0].pos
+                    route = evaluateRouteToCell(rbt.route[len(rbt.route) - 1], nextcell)
+                    rbt.assignMission(route, 8)
+
                 if cell.cellType == "chute":
+                    if self.logistics == sum([r.processCount for r in self.robots]):
+                        self.simulationFinishHandler()
+                        self.close()
+                        return
                     nextcell = self.workstation[0].pos
                     route = evaluateRouteToCell(rbt.route[len(rbt.route) - 1], nextcell)
                     rbt.assignMission(route, 0)
                 elif cell.cellType == "workstation":
-                    self.logistics -= 1
+                    if self.logisticsLeft == 0:
+                        return
                     randomindex = randint(0, len(self.chute) - 1)
                     nextcell = self.chute[randomindex].pos
                     route = evaluateRouteToCell(rbt.route[len(rbt.route) - 1], nextcell)
                     rbt.assignMission(route, 8)
+                    self.logisticsLeft -= 1
                 elif cell.cellType == "buffer":
                     nextcell = self.workstation[0].pos
                     route = evaluateRouteToCell(rbt.route[len(rbt.route) - 1], nextcell)
@@ -160,7 +168,7 @@ class Simulator(QWidget):
 
         for c in map.cells:
             self.addCell(Cell(c.pos, c.outDir, c.cellType))
-            
+
     def add_color_info(self, layout, color, text):
         color_layout = QHBoxLayout()
         color_label = QLabel()

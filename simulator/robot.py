@@ -68,8 +68,6 @@ class Robot(QGraphicsObject):
         self.route = [position]
         self.priority = rNum
 
-        self.processCount = 0
-
         self.deadlockedCounter = 0
         # detect deadlock
         # self.wait : int
@@ -92,6 +90,8 @@ class Robot(QGraphicsObject):
             self.pixmap_current = self.pixmap_default
 
     def rotateOperation(self, degree: int, duration: int):
+        self.power -= 1
+
         anim = QVariantAnimation(self)
         currRot = int(self.rotation())
         anim.setStartValue(currRot)
@@ -103,6 +103,7 @@ class Robot(QGraphicsObject):
         anim.start(QAbstractAnimation.DeleteWhenStopped)
 
     def moveOperation(self, destination: QPoint, duration: int):
+        self.power -= 1
         self.deadlockedCounter = 0
 
         anim = QVariantAnimation(self)

@@ -6,13 +6,20 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
 from PySide6.QtGui import QCloseEvent, QIcon, QColor, QFont
 from PySide6.QtWidgets import QGraphicsScene, QGraphicsView
 from PySide6.QtCore import QTimer, Qt, Signal, Slot
-from db.db import Warehouse, queryMap, colorText
+from db.db import CellData, Warehouse, queryMap, colorText
 from simulator.cell import Cell
 
 if TYPE_CHECKING:
     from simulation.simulation_form import SimulationParameter
 from simulation.simulation_observer import SimulationObserver, SimulationReport
-from simulator.pathfinding import Direction, NodePos, evaluateRouteToCell, gen
+from simulator.pathfinding import (
+    Direction,
+    NodePos,
+    dijkstra,
+    evaluateRoute,
+    evaluateRouteToCell,
+    gen,
+)
 from simulator.robot import Robot
 
 CELLSIZE = 100
@@ -67,6 +74,8 @@ class Simulator(QWidget):
         self.logistics = params.logistics
         self.logisticsLeft = params.logistics
 
+        self.lastbuffers = [self.findLastBuffer(w) for w in self.workstation]
+
         sideInfo = QWidget()
         sideInfo_layout = QVBoxLayout()
         sideInfo.setLayout(sideInfo_layout)
@@ -87,6 +96,9 @@ class Simulator(QWidget):
         color5 = QColor(169, 169, 169)
         self.add_color_info(sideInfo_layout, color5, colorText(5))
 
+        self.logisticsLabel = QLabel(f"Left : {self.logisticsLeft}")
+        sideInfo_layout.addWidget(self.logisticsLabel)
+
         self.layout().addWidget(sideInfo)
 
         self.start()
@@ -101,23 +113,37 @@ class Simulator(QWidget):
     def closeEvent(self, event: QCloseEvent):
         self.simulationFinishHandler()
 
-    @Slot(int, int, NodePos)
-    def missionFinishHandler(self, num: int, type, position: NodePos):
+    @Slot(int, NodePos)
+    def missionFinishHandler(self, num: int, position: NodePos):
         for cell in self.cells:
             if cell.nodeLoc == position.point().toTuple():
                 rbt = self.robots[num]
-                if rbt.power < 20:
-                    nextcell = self.chargingstation[0].pos
-                    route = evaluateRouteToCell(rbt.route[len(rbt.route) - 1], nextcell)
-                    rbt.assignMission(route, 8)
 
                 if cell.cellType == "chute":
                     if self.logistics == sum([r.processCount for r in self.robots]):
                         self.simulationFinishHandler()
                         self.close()
                         return
-                    nextcell = self.workstation[0].pos
-                    route = evaluateRouteToCell(rbt.route[len(rbt.route) - 1], nextcell)
+                    if self.robots[num].power < 10:
+                        charges = list(
+                            filter(
+                                lambda x: x.cellType == "chargingstation"
+                                and not x.occupied,
+                                self.cells,
+                            )
+                        )
+                        nodes, edges = gen()
+                        dist, prevs = dijkstra(nodes, edges, position)
+                        min = (None, float("inf"))
+                        for c in charges:
+                            node = NodePos(*c.nodeLoc, Direction.N)
+                            if dist[node] < min[1]:
+                                min = (node, dist[node])
+                        route = evaluateRoute(position, min[0])
+                        rbt.assignMission(route, 0)
+                        return
+                    nextcell = self.findNearestEntrance(position, self.buffer)
+                    route = evaluateRoute(position, nextcell)
                     rbt.assignMission(route, 0)
                 elif cell.cellType == "workstation":
                     if self.logisticsLeft == 0:
@@ -127,9 +153,17 @@ class Simulator(QWidget):
                     route = evaluateRouteToCell(rbt.route[len(rbt.route) - 1], nextcell)
                     rbt.assignMission(route, 8)
                     self.logisticsLeft -= 1
+                    self.logisticsLabel.setText(f"Left : {self.logisticsLeft}")
                 elif cell.cellType == "buffer":
                     nextcell = self.workstation[0].pos
                     route = evaluateRouteToCell(rbt.route[len(rbt.route) - 1], nextcell)
+                    rbt.assignMission(route, 0)
+                elif cell.cellType == "chargingstation":
+                    if rbt.power < 10:
+                        rbt.chargeOperation(cell)
+                        return
+                    nextcell = self.findNearestEntrance(position, self.buffer)
+                    route = evaluateRoute(position, nextcell)
                     rbt.assignMission(route, 0)
                 else:
                     print("runtime fatal robotnum", num, "cell not found on", position)
@@ -145,7 +179,7 @@ class Simulator(QWidget):
         )
 
         for r in self.robots:
-            r.missionFinished.emit(r.robotNum, r.robotType, r.route[len(r.route) - 1])
+            r.missionFinished.emit(r.robotNum, r.route[len(r.route) - 1])
 
         self.recorder.start(5000)
 
@@ -156,10 +190,6 @@ class Simulator(QWidget):
         self.robots.append(r)
         self.scene.addItem(r)
 
-    def addCell(self, cell: Cell):
-        self.cells.append(cell)
-        self.scene.addItem(cell)
-
     def generateMap(self, map: Warehouse):
         for i in range(map.grid[0] + 1):
             self.scene.addLine(i * CELLSIZE, 0, i * CELLSIZE, map.grid[1] * CELLSIZE)
@@ -167,7 +197,76 @@ class Simulator(QWidget):
             self.scene.addLine(0, i * CELLSIZE, map.grid[0] * CELLSIZE, i * CELLSIZE)
 
         for c in map.cells:
-            self.addCell(Cell(c.pos, c.outDir, c.cellType))
+            cell = Cell(c.pos, c.outDir, c.cellType)
+            cell.setParent(self)
+            self.cells.append(cell)
+            self.scene.addItem(cell)
+
+    def findLastBuffer(self, w: CellData):
+        hold = w
+        p = w.pos
+        changed = False
+
+        while changed:
+            changed = False
+            for b in self.buffer:
+                # n s w e
+                # outdir n -> buffer should be s of workstation
+                if (
+                    (b.pos == (p[0], p[1] + 1) and b.outDir == (1, 0, 0, 0))
+                    or (b.pos == (p[0], p[1] - 1) and b.outDir == (0, 1, 0, 0))
+                    or (b.pos == (p[0] + 1, p[1]) and b.outDir == (0, 0, 1, 0))
+                    or (b.pos == (p[0] - 1, p[1]) and b.outDir == (0, 0, 0, 1))
+                ):
+                    hold = b
+                    p = b.pos
+                    changed = True
+
+        return hold
+
+    # 이거 if문 왜있나 했더니
+    """
+    처음에 버퍼 찾으려고 했던거라 있음
+    차지스테이션 찾을때는 다른함수 써야됨
+    이거 아예 Cell객체 쓰는 함수로 바꾸자
+    Cell에 outdir넣어줘야함
+    """
+
+    def findNearestEntrance(self, src: NodePos, cellDatas: list[CellData]):
+        nodes, edges = gen()
+        dist, prevs = dijkstra(nodes, edges, src)
+        min = (None, float("inf"))
+        for b in cellDatas:
+            if b.outDir.index(1) == 0:
+                dir = Direction.N
+            elif b.outDir.index(1) == 1:
+                dir = Direction.S
+            elif b.outDir.index(1) == 2:
+                dir = Direction.W
+            elif b.outDir.index(1) == 3:
+                dir = Direction.E
+            node = NodePos(*b.pos, dir)
+            if dist[node] < min[1]:
+                min = (node, dist[node])
+        return min[0]
+
+    # def findNearestEntrance(self, src: NodePos,cellDatas:list[CellData]):
+    #     nodes, edges = gen()
+    #     dist, prevs = dijkstra(nodes, edges, src)
+    #     min = (None, float("inf"))
+    #     for b in self.lastbuffers:
+    #         if b.outDir.index(1) == 0:
+    #             dir = Direction.N
+    #         elif b.outDir.index(1) == 1:
+    #             dir = Direction.S
+    #         elif b.outDir.index(1) == 2:
+    #             dir = Direction.W
+    #         elif b.outDir.index(1) == 3:
+    #             dir = Direction.E
+    #         node = NodePos(*b.pos, dir)
+    #         if dist[node] < min[1]:
+    #             min = (node, dist[node])
+    #     return min[0]
 
     def add_color_info(self, layout, color, text):
         color_layout = QHBoxLayout()

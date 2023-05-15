@@ -24,7 +24,7 @@ def registerWarehouse(name):
 
 
 @dataclass
-class _Cell:
+class CellData:
     cellType: str
     pos: tuple[int, int]
     outDir: tuple[int, int, int, int]
@@ -33,10 +33,10 @@ class _Cell:
 @dataclass
 class Warehouse:
     grid: tuple[int, int]
-    cells: list[_Cell]
+    cells: list[CellData]
 
     def __post_init__(self):
-        self.cells = [_Cell(getCellType(c[0]), c[1], c[2]) for c in self.cells]
+        self.cells = [CellData(getCellType(c[0]), c[1], c[2]) for c in self.cells]
 
 
 def getCellType(n: int) -> str:

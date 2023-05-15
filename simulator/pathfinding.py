@@ -41,6 +41,9 @@ class Pos:
     def degree(self):
         return self.direction * 90
 
+    def posTuple(self):
+        return (self.x, self.y)
+
 
 class ViewPos(Pos):
     def __init__(self, x, y, direction) -> None:

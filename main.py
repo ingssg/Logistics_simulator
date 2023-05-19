@@ -22,9 +22,9 @@ from simulator.pathfinding import registerMap
 
 conn = pymysql.connect(
     host="127.0.0.1",
-    port=3306,
+    port=3307,
     user="root",
-    password="root",
+    password="dormammu",
     db="lghpdb",
     charset="utf8",
     client_flag=CLIENT.MULTI_STATEMENTS,
@@ -203,87 +203,87 @@ class secondwindow(QDialog, QWidget, form_secondwindow):
         file_grid = cur.fetchone()
 
         # 충전셀 색상
-        if file_grid[13] == 1:
+        if file_grid[10] == 1:
             self.color_charge.setText("Yellow")
             self.c_charge.setStyleSheet("background:yellow")
-        elif file_grid[13] == 2:
+        elif file_grid[10] == 2:
             self.color_charge.setText("Red")
             self.c_charge.setStyleSheet("background:red")
-        elif file_grid[13] == 3:
+        elif file_grid[10] == 3:
             self.color_charge.setText("Green")
             self.c_charge.setStyleSheet("background:green")
-        elif file_grid[13] == 4:
+        elif file_grid[10] == 4:
             self.color_charge.setText("Blue")
             self.c_charge.setStyleSheet("background:blue")
-        elif file_grid[13] == 5:
+        elif file_grid[10] == 5:
             self.color_charge.setText("Grey")
             self.c_charge.setStyleSheet("background:darkgrey")
 
         # 슈트셀 색상
-        if file_grid[14] == 1:
+        if file_grid[11] == 1:
             self.color_chute.setText("Yellow")
             self.c_chute.setStyleSheet("background:yellow")
-        elif file_grid[14] == 2:
+        elif file_grid[11] == 2:
             self.color_chute.setText("Red")
             self.c_chute.setStyleSheet("background:red")
-        elif file_grid[14] == 3:
+        elif file_grid[11] == 3:
             self.color_chute.setText("Green")
             self.c_chute.setStyleSheet("background:green")
-        elif file_grid[14] == 4:
+        elif file_grid[11] == 4:
             self.color_chute.setText("Blue")
             self.c_chute.setStyleSheet("background:blue")
-        elif file_grid[14] == 5:
+        elif file_grid[11] == 5:
             self.color_chute.setText("Grey")
             self.c_chute.setStyleSheet("background:darkgrey")
 
         # 워크스테이션셀 색상
-        if file_grid[15] == 1:
+        if file_grid[12] == 1:
             self.color_ws.setText("Yellow")
             self.c_ws.setStyleSheet("background:yellow")
-        elif file_grid[15] == 2:
+        elif file_grid[12] == 2:
             self.color_ws.setText("Red")
             self.c_ws.setStyleSheet("background:red")
-        elif file_grid[15] == 3:
+        elif file_grid[12] == 3:
             self.color_ws.setText("Green")
             self.c_ws.setStyleSheet("background:green")
-        elif file_grid[15] == 4:
+        elif file_grid[12] == 4:
             self.color_ws.setText("Blue")
             self.c_ws.setStyleSheet("background:blue")
-        elif file_grid[15] == 5:
+        elif file_grid[12] == 5:
             self.color_ws.setText("Grey")
             self.c_ws.setStyleSheet("background:darkgrey")
 
         # 버퍼셀 색상
-        if file_grid[16] == 1:
+        if file_grid[13] == 1:
             self.color_buffer.setText("Yellow")
             self.c_buffer.setStyleSheet("background:yellow")
-        elif file_grid[16] == 2:
+        elif file_grid[13] == 2:
             self.color_buffer.setText("Red")
             self.c_buffer.setStyleSheet("background:red")
-        elif file_grid[16] == 3:
+        elif file_grid[13] == 3:
             self.color_buffer.setText("Green")
             self.c_buffer.setStyleSheet("background:green")
-        elif file_grid[16] == 4:
+        elif file_grid[13] == 4:
             self.color_buffer.setText("Blue")
             self.c_buffer.setStyleSheet("background:blue")
-        elif file_grid[16] == 5:
+        elif file_grid[13] == 5:
             self.color_buffer.setText("Grey")
             self.c_buffer.setStyleSheet("background:darkgrey")
 
         # 블락셀 색상
-        if file_grid[17] == 1:
+        if file_grid[14] == 1:
             self.color_block.setText("Yellow")
             self.c_block.setStyleSheet("background:yellow")
-        elif file_grid[17] == 2:
+        elif file_grid[14] == 2:
             self.color_block.setText("Red")
             self.c_block.setStyleSheet("background:red")
-        elif file_grid[17] == 3:
+        elif file_grid[14] == 3:
             self.color_block.setText("Green")
             self.c_block.setStyleSheet("background:green")
-        elif file_grid[17] == 4:
+        elif file_grid[14] == 4:
             self.color_block.setText("Blue")
             self.c_block.setStyleSheet("background:blue")
-        elif file_grid[17] == 5:
+        elif file_grid[14] == 5:
             self.color_block.setText("Grey")
             self.c_block.setStyleSheet("background:darkgrey")
 

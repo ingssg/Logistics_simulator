@@ -15,11 +15,6 @@ class Direction(IntEnum):
     W = 3
 
 
-# class that have only x,y
-
-
-# is it necessary nodepos and viewpos are child of pos?
-# maybe what we need is just node (x,y)
 class Pos:
     def __init__(self, x, y, direction) -> None:
         self.x: int = int(x)
@@ -77,7 +72,7 @@ class NodePos(Pos):
 
 
 def facingEach(a: NodePos, b: NodePos):
-    return (a.direction + b.direction) % 2 == 0
+    return (a.direction != b.direction) and ((a.direction + b.direction) % 2 == 0)
 
 
 warehouse: Warehouse
@@ -93,7 +88,7 @@ def gen(tempBlocked: list[tuple[int, int]] = []):
     edges: dict[NodePos, list[tuple[NodePos, int]]] = {}
 
     nodes = list(
-        filter(lambda x: x.cellType != "block" or x.pos not in tempBlocked, raw_cells)
+        filter(lambda x: x.pos not in tempBlocked and x.cellType != "block", raw_cells)
     )
     orientedNodes: list[NodePos] = []
 
@@ -175,7 +170,12 @@ def backTrack(prevs: dict[NodePos, NodePos], source: NodePos, destination: NodeP
 def evaluateRoute(src: NodePos, dest: NodePos, tempBlocked: list[tuple[int, int]] = []):
     nodes, edges = gen(tempBlocked=tempBlocked)
     _, prevs = dijkstra(nodes, edges, src)
-    return backTrack(prevs, src, dest)
+
+    try:
+        r = backTrack(prevs, src, dest)
+        return r
+    except:
+        print("hello")
 
 
 def evaluateRouteToCell(src: NodePos, dest: tuple[int, int]):

@@ -65,11 +65,14 @@ class Simulator(QWidget):
             filter(lambda c: c.cellType == "chargingstation", self.map.cells)
         )
 
+        Robot._registry[self.windowTitle()] = []
         for i in range(params.belt + params.dump):
             if i == params.belt:
                 self.deployRobot(NodePos(*self.buffer[i].pos, Direction.E), 1)
             else:
                 self.deployRobot(NodePos(*self.buffer[i].pos, Direction.E), 0)
+
+        # self.deployRobot(NodePos(0, 1, 1), 1)
 
         self.logistics = params.logistics
         self.logisticsLeft = params.logistics
@@ -139,6 +142,10 @@ class Simulator(QWidget):
                             node = NodePos(*c.nodeLoc, Direction.N)
                             if dist[node] < min[1]:
                                 min = (node, dist[node])
+                        selected = [
+                            c for c in charges if c.nodeLoc == min[0].posTuple()
+                        ]
+                        selected[0].occupy()
                         route = evaluateRoute(position, min[0])
                         rbt.assignMission(route, 0)
                         return
@@ -159,12 +166,15 @@ class Simulator(QWidget):
                     route = evaluateRouteToCell(rbt.route[len(rbt.route) - 1], nextcell)
                     rbt.assignMission(route, 0)
                 elif cell.cellType == "chargingstation":
-                    if rbt.power < 10:
-                        rbt.chargeOperation(cell)
+                    if rbt.power < 20:
+                        # rbt.chargeOperation(cell)
+                        rbt.setRoute(rbt.route[-1:])
+                        rbt.charge()
                         return
                     nextcell = self.findNearestEntrance(position, self.buffer)
                     route = evaluateRoute(position, nextcell)
                     rbt.assignMission(route, 0)
+                    cell.deOccupy()
                 else:
                     print("runtime fatal robotnum", num, "cell not found on", position)
 
@@ -184,7 +194,7 @@ class Simulator(QWidget):
         self.recorder.start(5000)
 
     def deployRobot(self, pos: NodePos, type: int):
-        r = Robot(CELLSIZE, len(self.robots), type, pos, self.speed)
+        r = Robot(CELLSIZE, len(self.robots), type, pos, self.speed, self.windowTitle())
         r.setParent(self)
         r.missionFinished.connect(self.missionFinishHandler)
         self.robots.append(r)

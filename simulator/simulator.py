@@ -260,24 +260,6 @@ class Simulator(QWidget):
                 min = (node, dist[node])
         return min[0]
 
-    # def findNearestEntrance(self, src: NodePos,cellDatas:list[CellData]):
-    #     nodes, edges = gen()
-    #     dist, prevs = dijkstra(nodes, edges, src)
-    #     min = (None, float("inf"))
-    #     for b in self.lastbuffers:
-    #         if b.outDir.index(1) == 0:
-    #             dir = Direction.N
-    #         elif b.outDir.index(1) == 1:
-    #             dir = Direction.S
-    #         elif b.outDir.index(1) == 2:
-    #             dir = Direction.W
-    #         elif b.outDir.index(1) == 3:
-    #             dir = Direction.E
-    #         node = NodePos(*b.pos, dir)
-    #         if dist[node] < min[1]:
-    #             min = (node, dist[node])
-    #     return min[0]
-
     def add_color_info(self, layout, color, text):
         color_layout = QHBoxLayout()
         color_label = QLabel()

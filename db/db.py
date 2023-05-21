@@ -4,7 +4,12 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
 
 conn = pymysql.connect(
-    host="127.0.0.1", user="root", port = 3307, password="dormammu", db="lghpdb", charset="utf8"
+    host="127.0.0.1",
+    user="root",
+    port=3306,
+    password="root",
+    db="lghpdb",
+    charset="utf8",
 )
 
 dblist = ["buffer", "chargingstation", "chute", "workstation"]
@@ -18,7 +23,7 @@ def registerWarehouse(name):
 
 
 @dataclass
-class _Cell:
+class CellData:
     cellType: str
     pos: tuple[int, int]
     outDir: tuple[int, int, int, int]
@@ -27,10 +32,10 @@ class _Cell:
 @dataclass
 class Warehouse:
     grid: tuple[int, int]
-    cells: list[_Cell]
+    cells: list[CellData]
 
     def __post_init__(self):
-        self.cells = [_Cell(getCellType(c[0]), c[1], c[2]) for c in self.cells]
+        self.cells = [CellData(getCellType(c[0]), c[1], c[2]) for c in self.cells]
 
 
 def getCellType(n: int) -> str:
@@ -67,19 +72,19 @@ def queryMap():
 
         return Warehouse(grid, cells)
 
+
 def colorText(color):
     if warehouse_name == "":
         print("map not opened")
         return
-    
+
     with conn.cursor() as cur:
-        cur.execute(
-            "select * from grid where grid_id = %s", [warehouse_name]
-    )
+        cur.execute("select * from grid where grid_id = %s", [warehouse_name])
         cellColor = cur.fetchone()
         for i in range(10, 15):
             if cellColor[i] == color:
                 break
+
         if i-10 == 0:
             return "충전"
         elif i-10 == 1:
@@ -95,11 +100,9 @@ def cellColor(cellnum):
     if warehouse_name == "":
         print("map not opened!!!!!!!!!!")
         return
-    
+
     with conn.cursor() as cur:
-        cur.execute(
-            "select * from grid where grid_id = %s", [warehouse_name]
-    )
+        cur.execute("select * from grid where grid_id = %s", [warehouse_name])
         cell_Color = cur.fetchone()
         Cell_num = cellnum+9
         if cell_Color[Cell_num] == 1:
@@ -112,7 +115,8 @@ def cellColor(cellnum):
             return "blue"
         elif cell_Color[Cell_num] == 5:
             return "lightgrey"
-     
+
+
 def colorDict():
     cell_colors = {
         "cell": QColor(255, 255, 255, 255),

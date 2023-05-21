@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtGui import QFont
 from db.db import queryMap
-
+from result.result_table import registerRunInfo
 from simulator.simulator import Simulator
 
 if TYPE_CHECKING:
@@ -122,6 +122,12 @@ class SimulationForm(QWidget):
         )
 
     def startSimulation(self):
+        runinfo = {
+            "belt": self.belt_field.text(),
+            "dump": self.dump_field.text(),
+            "logis": self.logistic_field.text()
+        }
+        registerRunInfo(runinfo)
         if not self.isFormValid():
             return
 

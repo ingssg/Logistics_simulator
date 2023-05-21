@@ -12,7 +12,6 @@ colors = [Qt.blue, Qt.yellow, Qt.red, Qt.white]
 
 warehouse_name = ""
 
-
 def registerWarehouse(name):
     global warehouse_name
     warehouse_name = name
@@ -116,7 +115,7 @@ def cellColor(cellnum):
      
 def colorDict():
     cell_colors = {
-        "cell": QColor(0, 0, 0, 0),
+        "cell": QColor(255, 255, 255, 255),
         "chute": QColor(cellColor(2)),
         "buffer": QColor(cellColor(4)),
         "workstation": QColor(cellColor(3)),
@@ -124,5 +123,3 @@ def colorDict():
         "chargingstation": QColor(cellColor(1)),
     }                       
     return cell_colors
-
-

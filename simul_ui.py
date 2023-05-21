@@ -60,7 +60,7 @@ class Ui_Dialog(object):
         self.label.setStyleSheet(u"color: rgb(82,242,226);")
         self.listView = QListView(self.tab)
         self.listView.setObjectName(u"listView")
-        self.listView.setGeometry(QRect(30, 70, 221, 271))
+        self.listView.setGeometry(QRect(30, 70, 221, 311))
         self.listView.setStyleSheet(u"color: rgb(255,255,255);\n"
 "background-color: rgb(1,35,40);\n"
 "border: 7px double rgb(82,242,226);\n"
@@ -72,7 +72,7 @@ class Ui_Dialog(object):
         self.label_2.setStyleSheet(u"color: rgb(82,242,226);")
         self.listView_2 = QListView(self.tab)
         self.listView_2.setObjectName(u"listView_2")
-        self.listView_2.setGeometry(QRect(740, 70, 221, 271))
+        self.listView_2.setGeometry(QRect(740, 70, 221, 311))
         self.listView_2.setStyleSheet(u"color: rgb(255,255,255);\n"
 "background-color: rgb(1,35,40);\n"
 "border: 7px double rgb(82,242,226);\n"
@@ -239,6 +239,21 @@ class Ui_Dialog(object):
         self.label_8.setGeometry(QRect(771, 177, 115, 30))
         self.label_8.setFont(font4)
         self.label_8.setStyleSheet(u"color: rgb(82,242,226);")
+        self.save = QPushButton(self.tab)
+        self.save.setObjectName(u"save")
+        self.save.setGeometry(QRect(100, 330, 75, 24))
+        self.save.setFont(font3)
+        self.save.setStyleSheet(u"QPushButton {\n"
+"            color: rgb(82,242,226);\n"
+"            background-color: rgb(86,140,140);\n"
+"            border: 2px solid rgb(82,242,226);\n"
+"            border-radius: 10px;\n"
+"        }\n"
+"        QPushButton:hover {\n"
+"            color: rgb(255,255,255);\n"
+"            background-color: rgb(100,149,237);\n"
+"            border-color: rgb(100,149,237);\n"
+"        }")
         self.tabWidget.addTab(self.tab, "")
         self.listView_2.raise_()
         self.listView.raise_()
@@ -262,6 +277,7 @@ class Ui_Dialog(object):
         self.c_buffer.raise_()
         self.label_7.raise_()
         self.label_8.raise_()
+        self.save.raise_()
 
         self.retranslateUi(Dialog)
 
@@ -294,6 +310,7 @@ class Ui_Dialog(object):
         self.c_buffer.setText("")
         self.label_7.setText(QCoreApplication.translate("Dialog", u"\ucda9\uc804", None))
         self.label_8.setText(QCoreApplication.translate("Dialog", u"\uc288\ud2b8", None))
+        self.save.setText(QCoreApplication.translate("Dialog", u"save", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), QCoreApplication.translate("Dialog", u"Overview", None))
     # retranslateUi
 

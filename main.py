@@ -16,6 +16,7 @@ import openpyxl
 import pymysql
 from pymysql.constants import CLIENT
 from db.db import registerWarehouse
+from result.result_table import registerProjectInfo
 from result.result_tab import ResultTab
 from simulation.simulation_tab import SimulationTab
 from simulator.pathfinding import registerMap
@@ -69,10 +70,9 @@ form_second = resource_path("simul.ui")
 form_secondwindow = loadUiType(form_second)[0]
 
 
+
 class WindowClass(QMainWindow, form_class):
     def __init__(self):
-        global projectid
-        projectid = "tmp"
         super().__init__()
         self.setupUi(self)
         self.setWindowTitle("시뮬레이터")
@@ -84,8 +84,6 @@ class WindowClass(QMainWindow, form_class):
 
     # -loadMap button 함수: simul.ui로 창전환
     def btn_loadMap(self):
-        global projectid
-        cur.execute("CALL deleteProject(%s)", [projectid])
         self.hide()
         self.second = secondwindow()
         self.second.exec()
@@ -100,7 +98,8 @@ class secondwindow(QDialog, QWidget, form_secondwindow):
         self.setWindowIcon(QIcon("./image/logo.png"))
         self.setGeometry(100, 50, 1000, 550)
         self.show()
-
+        self.save.clicked.connect(self.btn_save)
+        
         ###   overview  tab ###
         # overview-1.map 파일 미리보기
         file = QFileDialog.getOpenFileName(
@@ -114,13 +113,9 @@ class secondwindow(QDialog, QWidget, form_secondwindow):
         # 파일 이름으로 db에서 해당 정보 연결
         global file_name, simul_name, s_count
         file_name = QFileInfo(file[0]).baseName()
-        # 우선 프로젝트명 : p1, 시뮬명 : s1으로 생성, 이후에 값들 입력받으면 변경
         s_count = int(1)
         simul_name = str(file_name) + "_s" + str(s_count)
         s_count = s_count + 1
-        sql = "CALL deleteProject('p1'); CALL createProject('p1', NULL, NULL, NULL); CALL createSimul('p1', %s); CALL updateGridtoSimul(%s, %s); CALL updateProjectRunning(1, 'p1');"
-        cur.execute(sql, [simul_name, simul_name, str(file_name)])
-        # db에서 가져온 GridSize로 row, col 변경
         sql = "SELECT GridSizeX FROM grid " + "WHERE Grid_ID = %s;"
         cur.execute(sql, [str(file_name)])
         file_col = cur.fetchone()
@@ -287,6 +282,16 @@ class secondwindow(QDialog, QWidget, form_secondwindow):
             self.color_block.setText("Grey")
             self.c_block.setStyleSheet("background:darkgrey")
 
+    def btn_save(self):
+        projectInfo = {
+            "PID": self.projectid.text(),
+            "Distributor": self.distributor.text(),
+            "Customer": self.customer.text(),
+            "CenterName": self.centername.text(),
+            "gridID": file_name
+        }
+        registerProjectInfo(projectInfo)
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
@@ -294,6 +299,6 @@ if __name__ == "__main__":
     myWindow.show()
 
     app.exec()
-cur.execute("CALL deleteProject(%s)", [projectid])
+
 
 conn.close()

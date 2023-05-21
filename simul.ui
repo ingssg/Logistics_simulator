@@ -107,7 +107,7 @@ border-radius:10px;</string>
        <x>30</x>
        <y>70</y>
        <width>221</width>
-       <height>271</height>
+       <height>311</height>
       </rect>
      </property>
      <property name="styleSheet">
@@ -145,7 +145,7 @@ border-radius: 10px;</string>
        <x>740</x>
        <y>70</y>
        <width>221</width>
-       <height>271</height>
+       <height>311</height>
       </rect>
      </property>
      <property name="styleSheet">
@@ -623,6 +623,38 @@ border: 1px solid rgb(107,242,242);</string>
       <string>슈트</string>
      </property>
     </widget>
+    <widget class="QPushButton" name="save">
+     <property name="geometry">
+      <rect>
+       <x>100</x>
+       <y>330</y>
+       <width>75</width>
+       <height>24</height>
+      </rect>
+     </property>
+     <property name="font">
+      <font>
+       <family>나눔고딕 ExtraBold</family>
+       <pointsize>11</pointsize>
+      </font>
+     </property>
+     <property name="styleSheet">
+        <string notr="true">QPushButton {
+            color: rgb(82,242,226);
+            background-color: rgb(86,140,140);
+            border: 2px solid rgb(82,242,226);
+            border-radius: 10px;
+        }
+        QPushButton:hover {
+            color: rgb(255,255,255);
+            background-color: rgb(100,149,237);
+            border-color: rgb(100,149,237);
+        }</string>
+     </property>
+     <property name="text">
+      <string>save</string>
+     </property>
+    </widget>
     <zorder>listView_2</zorder>
     <zorder>listView</zorder>
     <zorder>map</zorder>
@@ -645,6 +677,7 @@ border: 1px solid rgb(107,242,242);</string>
     <zorder>c_buffer</zorder>
     <zorder>label_7</zorder>
     <zorder>label_8</zorder>
+    <zorder>save</zorder>
    </widget>
   </widget>
  </widget>

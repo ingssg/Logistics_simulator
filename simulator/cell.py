@@ -34,6 +34,8 @@ class Cell(QGraphicsObject):
         self.setPos(loc[0] * 100, loc[1] * 100)
         self.nodeLoc = loc
 
+        self.occupied = False
+
         cell_colors = colorDict()
         self.cellType = cellType
         self.color = cell_colors[cellType]
@@ -67,6 +69,13 @@ class Cell(QGraphicsObject):
 
     def mousePressEvent(self, event: QGraphicsSceneMouseEvent):
         self.infoWindow.show()
+
+    # charge
+    def occupy(self):
+        self.occupied = True
+
+    def deOccupy(self):
+        self.occupied = False
 
 
 class CellInfoWindow(QWidget):

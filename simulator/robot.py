@@ -12,6 +12,7 @@ from PySide6.QtCore import (
     Signal,
     Slot,
 )
+from PIL import Image
 from PySide6.QtGui import QPainter, QPixmap
 from PySide6.QtWidgets import (
     QGraphicsObject,
@@ -27,10 +28,10 @@ from simulator.pathfinding import (
     facingEach,
 )
 
-ROBOT_EMPTY_0 = "image/robot_empty.png"
-ROBOT_CARRY_0 = "image/robot_gas.png"
-ROBOT_EMPTY_1 = "image/robot_another.png"
-ROBOT_CARRY_1 = "image/robot_mineral.png"
+ROBOT_EMPTY_0 = "image/belt.png"
+ROBOT_CARRY_0 = "image/belt_logis.png"
+ROBOT_EMPTY_1 = "image/dump.png"
+ROBOT_CARRY_1 = "image/dump_logis.png"
 
 SIZE = 100
 

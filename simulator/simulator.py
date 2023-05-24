@@ -25,6 +25,18 @@ from simulator.robot import Robot
 CELLSIZE = 100
 SPEED = 500
 
+robotinfo = {"num": '0',
+             "destination": "null",
+             "power": '0',
+             "charging": "0"}
+
+roboClicked = "false"
+
+def registerRobotInfo(info):
+    global robotinfo, roboClicked
+    robotinfo = info
+    roboClicked = "true"
+
 
 class Simulator(QWidget):
     simulationFinished = Signal(SimulationReport)
@@ -99,12 +111,47 @@ class Simulator(QWidget):
         color5 = QColor(169, 169, 169)
         self.add_color_info(sideInfo_layout, color5, colorText(5))
 
+        print(robotinfo)
+        robonum = robotinfo["num"]
+        dest = robotinfo["destination"]
+        power = robotinfo["power"]
+        charging = robotinfo["charging"]
+        
         self.logisticsLabel = QLabel(f"Left : {self.logisticsLeft}")
         sideInfo_layout.addWidget(self.logisticsLabel)
 
+        self.robotNumLabel = QLabel()
+        self.robotNumLabel.setText(f"Robot Num : {robonum}")
+        sideInfo_layout.addWidget(self.robotNumLabel)
+        
+        self.robotDestLabel = QLabel()
+        self.robotDestLabel.setText(f"Destination : {dest}")
+        sideInfo_layout.addWidget(self.robotDestLabel)
+        
+        self.robotPowLabel = QLabel()
+        self.robotPowLabel.setText(f"Battery : {power}")
+        sideInfo_layout.addWidget(self.robotPowLabel)
+        
+        self.robotChargingLabel = QLabel()
+        self.robotChargingLabel.setText(f"isCharging  : {charging}")
+        sideInfo_layout.addWidget(self.robotChargingLabel)
+
+        # self.robotNumLabel = QLabel(f"Robot Num : {robotinfo["num"]}")
+        # sideInfo_layout.addWidget(self.robotNumLabel)
+        # self.destLabel = QLabel(f"Destination : {robotinfo}")
+        # sideInfo_layout.addWidget(self.destLabel)
+        # self.powerLabel = QLabel(f"Power : {robotinfo}")
+        # sideInfo_layout.addWidget(self.powerLabel)
+        # self.chargeLabel = QLabel(f"Charging : {robotinfo}.")
+        # sideInfo_layout.addWidget(self.chargeLabel)
+
         self.layout().addWidget(sideInfo)
 
+
+
         self.start()
+
+
 
     def simulationFinishHandler(self):
         elapsed = time() - self.time
@@ -118,7 +165,21 @@ class Simulator(QWidget):
 
     @Slot(int, NodePos)
     def missionFinishHandler(self, num: int, position: NodePos):
+        global roboClicked
         for cell in self.cells:
+            if roboClicked == "true":
+                robonum = robotinfo["num"]
+                dest = robotinfo["destination"]
+                power = robotinfo["power"]
+                charging = robotinfo["charging"]
+                self.robotNumLabel.setText(f"Robot Num : {robonum}")
+                self.robotDestLabel.setText(f"Destination : {dest}")
+                self.robotPowLabel.setText(f"Battery : {power}")
+                self.robotChargingLabel.setText(f"isCharging  : {charging}")
+                
+                roboClicked = "false"
+                print(123123)
+
             if cell.nodeLoc == position.point().toTuple():
                 rbt = self.robots[num]
 

@@ -6,8 +6,8 @@ from PySide6.QtGui import QColor
 conn = pymysql.connect(
     host="127.0.0.1",
     user="root",
-    port=3306,
-    password="root",
+    port=3307,
+    password="dormammu",
     db="lghpdb",
     charset="utf8",
 )

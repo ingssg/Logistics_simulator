@@ -20,7 +20,7 @@ class ResultTable(QTableWidget):
         self.setColumnCount(2)
         self.setHorizontalHeaderLabels(["type", "value"])
         self.setRowCount(4)
-        self.setItem(0, 0, QTableWidgetItem("name"))
+        self.setItem(0, 0, QTableWidgetItem("Simul ID"))
         self.setItem(0, 1, QTableWidgetItem(report.name))
         self.setItem(1, 0, QTableWidgetItem("throughput"))
         self.setItem(1, 1, QTableWidgetItem(str(sum(r[1] for r in report.robots))))
@@ -31,7 +31,9 @@ class ResultTable(QTableWidget):
         self.save_button = QPushButton("저장", self)
         self.save_button.move(205, 200)
         self.save_button.clicked.connect(lambda: self.save_data(report))
-        self.save_button.setStyleSheet("border: 3px solid rgb(82,242,226); color: rgb(82, 242, 226); font-size: 16px;")
+        self.save_button.setStyleSheet(
+            "color: rgb(82, 242, 226); background-color: rgb(86, 140, 140);border: 2px solid rgb(82, 242, 226); border-radius: 20px;")
+        self.setStyleSheet("background-color: rgb(255,255,255);")
         self.save_button.setFixedSize(120, 40)
         
     def save_data(self, report: SimulationReport):

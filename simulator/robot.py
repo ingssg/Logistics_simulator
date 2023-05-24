@@ -1,4 +1,5 @@
 from __future__ import annotations
+from dataclasses import dataclass
 from time import sleep
 from typing import TYPE_CHECKING
 from PySide6.QtCore import (
@@ -13,7 +14,7 @@ from PySide6.QtCore import (
     Slot,
 )
 from PIL import Image
-from PySide6.QtGui import QPainter, QPixmap
+from PySide6.QtGui import QPainter, QPixmap, QColor, QFont
 from PySide6.QtWidgets import (
     QGraphicsObject,
     QStyleOptionGraphicsItem,
@@ -27,6 +28,15 @@ from simulator.pathfinding import (
     evaluateRoute,
     facingEach,
 )
+
+
+@dataclass
+class RobotInfo:
+    num: int
+    destination: str
+    power: int
+    charging: bool
+
 
 ROBOT_EMPTY_0 = "image/belt.png"
 ROBOT_CARRY_0 = "image/belt_logis.png"
@@ -83,8 +93,12 @@ class Robot(QGraphicsObject):
 
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget):
         painter.drawPixmap(QPointF(0, 0), self.pixmap_current, self.boundingRect())
+        painter.setPen(QColor(0, 0, 0))
+        painter.setFont(QFont("Arial", 16))
+        painter.drawText(QPointF(60, 80), str(self.robotNum))
 
     def mousePressEvent(self, e):
+        from simulator.simulator import registerRobotInfo
         print(f"Robot {self.robotNum}")
         print(f"destination {self.route[-1]}")
         print(f"charging {self.charging}")
@@ -92,6 +106,20 @@ class Robot(QGraphicsObject):
         print("current route")
         print(self.route)
         print("---")
+        robotinfo = {
+            "num": self.robotNum,
+            "destination": self.route[-1],
+            "power": self.power,
+            "charging": self.charging
+        }
+        registerRobotInfo(robotinfo)
+        # p = RobotInfo(
+        #     self.name_field.text(),
+        #     int(self.belt_field.text()),
+        #     int(self.dump_field.text()),
+        #     int(self.logistic_field.text()),
+        #     self.speed.currentText(),
+        # )
 
     def dumpPixmap(self, box: int):
         if box != 0:

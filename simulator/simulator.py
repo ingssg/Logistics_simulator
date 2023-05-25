@@ -1,4 +1,5 @@
 from __future__ import annotations
+from copy import deepcopy
 from typing import TYPE_CHECKING
 from random import randint
 from time import time
@@ -24,6 +25,16 @@ from simulator.robot import Robot
 
 CELLSIZE = 100
 SPEED = 500
+CHARGEREQUIRED = 10
+
+WORK = "workstation"
+CHUTE = "chute"
+BUFFER = "buffer"
+CELL = "cell"
+CHARGE = "chargingstation"
+BLOCK = "block"
+
+ENTER = "enter"
 
 
 class Simulator(QWidget):
@@ -43,41 +54,24 @@ class Simulator(QWidget):
 
         self.simulationFinished.connect(SimulationObserver.getInstance().forwardReport)
 
-        self.cells: list[Cell] = []
+        self.cells: dict[str, list[Cell]] = {}
         self.robots: list[Robot] = []
-
-        self.map = queryMap()
-        self.generateMap(self.map)
-
         if params.speed == "1":
             self.speed = SPEED
         elif params.speed == "2":
             self.speed = SPEED // 2
         else:  # 0.5
             self.speed = SPEED * 2
-
-        self.workstation = list(
-            filter(lambda c: c.cellType == "workstation", self.map.cells)
-        )
-        self.chute = list(filter(lambda c: c.cellType == "chute", self.map.cells))
-        self.buffer = list(filter(lambda c: c.cellType == "buffer", self.map.cells))
-        self.chargingstation = list(
-            filter(lambda c: c.cellType == "chargingstation", self.map.cells)
-        )
-
-        Robot._registry[self.windowTitle()] = []
-        for i in range(params.belt + params.dump):
-            if i == params.belt:
-                self.deployRobot(NodePos(*self.buffer[i].pos, Direction.E), 1)
-            else:
-                self.deployRobot(NodePos(*self.buffer[i].pos, Direction.E), 0)
-
-        # self.deployRobot(NodePos(0, 1, 1), 1)
-
         self.logistics = params.logistics
         self.logisticsLeft = params.logistics
 
-        self.lastbuffers = [self.findLastBuffer(w) for w in self.workstation]
+        self.map = queryMap()
+        self.generateMap(self.map)
+
+        Robot._registry[self.windowTitle()] = []
+        for i in range(params.belt + params.dump):
+            t = 0 if i < params.belt else 1
+            self.deployRobot(NodePos(*self.cells[BUFFER][i].nodeLoc, Direction.E), t)
 
         sideInfo = QWidget()
         sideInfo_layout = QVBoxLayout()
@@ -106,92 +100,47 @@ class Simulator(QWidget):
 
         self.start()
 
-    def simulationFinishHandler(self):
-        elapsed = time() - self.time
-        process = [(r.robotType, r.processCount) for r in self.robots]
-        self.simulationFinished.emit(
-            SimulationReport(self.windowTitle(), elapsed, process, self.timeSeries, 0)
-        )
-
     def closeEvent(self, event: QCloseEvent):
         self.simulationFinishHandler()
 
-    @Slot(int, NodePos)
-    def missionFinishHandler(self, num: int, position: NodePos):
-        for cell in self.cells:
-            if cell.nodeLoc == position.point().toTuple():
-                rbt = self.robots[num]
+    def generateMap(self, map: Warehouse):
+        for c in map.cells:
+            cell = Cell(c.pos, c.outDir, c.cellType)
+            cell.setParent(self)
+            if c.cellType not in self.cells:
+                self.cells[c.cellType] = []
+            self.cells[c.cellType].append(cell)
+            self.scene.addItem(cell)
 
-                if cell.cellType == "chute":
-                    if self.logistics == sum([r.processCount for r in self.robots]):
-                        self.simulationFinishHandler()
-                        self.close()
-                        return
-                    if self.robots[num].power < 10:
-                        charges = list(
-                            filter(
-                                lambda x: x.cellType == "chargingstation"
-                                and not x.occupied,
-                                self.cells,
-                            )
-                        )
-                        nodes, edges = gen()
-                        dist, prevs = dijkstra(nodes, edges, position)
-                        min = (None, float("inf"))
-                        for c in charges:
-                            node = NodePos(*c.nodeLoc, Direction.N)
-                            if dist[node] < min[1]:
-                                min = (node, dist[node])
-                        selected = [
-                            c for c in charges if c.nodeLoc == min[0].posTuple()
-                        ]
-                        selected[0].occupy()
-                        route = evaluateRoute(position, min[0])
-                        rbt.assignMission(route, 0)
-                        return
-                    nextcell = self.findNearestEntrance(position, self.buffer)
-                    route = evaluateRoute(position, nextcell)
-                    rbt.assignMission(route, 0)
-                elif cell.cellType == "workstation":
-                    if self.logisticsLeft == 0:
-                        return
-                    randomindex = randint(0, len(self.chute) - 1)
-                    nextcell = self.chute[randomindex].pos
-                    route = evaluateRouteToCell(rbt.route[len(rbt.route) - 1], nextcell)
-                    rbt.assignMission(route, 8)
-                    self.logisticsLeft -= 1
-                    self.logisticsLabel.setText(f"Left : {self.logisticsLeft}")
-                elif cell.cellType == "buffer":
-                    nextcell = self.workstation[0].pos
-                    route = evaluateRouteToCell(rbt.route[len(rbt.route) - 1], nextcell)
-                    rbt.assignMission(route, 0)
-                elif cell.cellType == "chargingstation":
-                    if rbt.power < 20:
-                        # rbt.chargeOperation(cell)
-                        rbt.setRoute(rbt.route[-1:])
-                        rbt.charge()
-                        return
-                    nextcell = self.findNearestEntrance(position, self.buffer)
-                    route = evaluateRoute(position, nextcell)
-                    rbt.assignMission(route, 0)
-                    cell.deOccupy()
-                else:
-                    print("runtime fatal robotnum", num, "cell not found on", position)
+        self.cells[ENTER] = []
+        for w in self.cells[WORK]:
+            self.cells[ENTER].append(self.findLastBuffer(w))
 
-    def start(self):
-        self.time = time()
-        self.timeSeries = [(0, 0)]
-        self.recorder = QTimer(self)
-        self.recorder.timeout.connect(
-            lambda: self.timeSeries.append(
-                (len(self.timeSeries) * 5, sum(r.processCount for r in self.robots))
-            )
-        )
+        for i in range(map.grid[0] + 1):
+            self.scene.addLine(i * CELLSIZE, 0, i * CELLSIZE, map.grid[1] * CELLSIZE)
+        for i in range(map.grid[1] + 1):
+            self.scene.addLine(0, i * CELLSIZE, map.grid[0] * CELLSIZE, i * CELLSIZE)
 
-        for r in self.robots:
-            r.missionFinished.emit(r.robotNum, r.route[len(r.route) - 1])
-
-        self.recorder.start(5000)
+    def findLastBuffer(self, w: Cell):
+        hold = w
+        p = w.nodeLoc
+        changed = False
+        while changed:
+            changed = False
+            for b in self.cells[BUFFER]:
+                # n s w e
+                # outdir n -> buffer should be s of workstation
+                if (
+                    (b.nodeLoc == (p[0], p[1] + 1) and b.outDirs == (1, 0, 0, 0))
+                    or (b.nodeLoc == (p[0], p[1] - 1) and b.outDirs == (0, 1, 0, 0))
+                    or (b.nodeLoc == (p[0] + 1, p[1]) and b.outDirs == (0, 0, 1, 0))
+                    or (b.nodeLoc == (p[0] - 1, p[1]) and b.outDirs == (0, 0, 0, 1))
+                ):
+                    hold = b
+                    p = b.nodeLoc
+                    changed = True
+                    break
+        return hold
 
     def deployRobot(self, pos: NodePos, type: int):
         r = Robot(CELLSIZE, len(self.robots), type, pos, self.speed, self.windowTitle())
@@ -200,65 +149,185 @@ class Simulator(QWidget):
         self.robots.append(r)
         self.scene.addItem(r)
 
-    def generateMap(self, map: Warehouse):
-        for i in range(map.grid[0] + 1):
-            self.scene.addLine(i * CELLSIZE, 0, i * CELLSIZE, map.grid[1] * CELLSIZE)
-        for i in range(map.grid[1] + 1):
-            self.scene.addLine(0, i * CELLSIZE, map.grid[0] * CELLSIZE, i * CELLSIZE)
+    def findCell(self, pos: NodePos):
+        for k, v in self.cells.items():
+            for c in v:
+                if c.nodeLoc == pos.posTuple():
+                    return k, c
+        return None, None
 
-        for c in map.cells:
-            cell = Cell(c.pos, c.outDir, c.cellType)
-            cell.setParent(self)
-            self.cells.append(cell)
-            self.scene.addItem(cell)
-
-    def findLastBuffer(self, w: CellData):
-        hold = w
-        p = w.pos
-        changed = False
-
-        while changed:
-            changed = False
-            for b in self.buffer:
-                # n s w e
-                # outdir n -> buffer should be s of workstation
-                if (
-                    (b.pos == (p[0], p[1] + 1) and b.outDir == (1, 0, 0, 0))
-                    or (b.pos == (p[0], p[1] - 1) and b.outDir == (0, 1, 0, 0))
-                    or (b.pos == (p[0] + 1, p[1]) and b.outDir == (0, 0, 1, 0))
-                    or (b.pos == (p[0] - 1, p[1]) and b.outDir == (0, 0, 0, 1))
-                ):
-                    hold = b
-                    p = b.pos
-                    changed = True
-
-        return hold
-
-    # 이거 if문 왜있나 했더니
-    """
-    처음에 버퍼 찾으려고 했던거라 있음
-    차지스테이션 찾을때는 다른함수 써야됨
-    이거 아예 Cell객체 쓰는 함수로 바꾸자
-    Cell에 outdir넣어줘야함
-    """
-
-    def findNearestEntrance(self, src: NodePos, cellDatas: list[CellData]):
+    def getNearestEntrance(self, src: NodePos):
         nodes, edges = gen()
         dist, prevs = dijkstra(nodes, edges, src)
         min = (None, float("inf"))
-        for b in cellDatas:
-            if b.outDir.index(1) == 0:
+        for b in self.cells[ENTER]:
+            if b.outDirs.index(1) == 0:
                 dir = Direction.N
-            elif b.outDir.index(1) == 1:
+            elif b.outDirs.index(1) == 1:
                 dir = Direction.S
-            elif b.outDir.index(1) == 2:
+            elif b.outDirs.index(1) == 2:
                 dir = Direction.W
-            elif b.outDir.index(1) == 3:
+            elif b.outDirs.index(1) == 3:
                 dir = Direction.E
-            node = NodePos(*b.pos, dir)
+            node = NodePos(*b.nodeLoc, dir)
             if dist[node] < min[1]:
                 min = (node, dist[node])
         return min[0]
+
+    def getTotalProcessed(self):
+        return sum(r.processCount for r in self.robots)
+
+    def pushHistory(self, r: Robot):
+        if len(self.moveHistory) == len(self.robots) * 3:
+            self.moveHistory.pop(0)
+        self.moveHistory.append((r, r.currentPos, r.operatingPos))
+
+    def missionFinishHandler(self, robotNum: int, robotPos: NodePos):
+        t, c = self.findCell(robotPos)
+        r = self.robots[robotNum]
+
+        if t == CHUTE:
+            r.processCount += 1
+            r.box = 0
+            r.dumpPixmap(0)
+
+            if self.logistics == sum([r.processCount for r in self.robots]):
+                self.simulationFinishHandler()
+                # self.close()
+                return
+
+            if r.power < CHARGEREQUIRED:
+                charge = [c for c in self.cells[CHARGE] if not c.occupied][0]
+                r.am(evaluateRouteToCell(robotPos, charge.nodeLoc)[-1], 0)
+                charge.occupy()
+                return
+            else:
+                r.am(self.getNearestEntrance(robotPos), 0)
+                return
+        elif t == WORK:
+            if self.logisticsLeft == 0:
+                return
+
+            destChute = self.cells[CHUTE][
+                randint(0, len(self.cells[CHUTE]) - 1)
+            ].nodeLoc
+            r.am(evaluateRouteToCell(robotPos, destChute)[-1], 8)
+            self.logisticsLeft -= 1
+            self.logisticsLabel.setText(f"Left : {self.logisticsLeft}")
+            return
+        elif t == CHARGE:
+            if r.power < CHARGEREQUIRED:
+                # r.charge()
+                r.charging = True
+                r.power += 1
+                return
+            else:
+                r.am(self.getNearestEntrance(robotPos), 0)
+                return
+        elif t == BUFFER:
+            nextPos = deepcopy(robotPos)
+            if c.outDirs[0] == 1:
+                nextPos.y -= 1
+                nextPos.direction = Direction.N
+            elif c.outDirs[1] == 1:
+                nextPos.y += 1
+                nextPos.direction = Direction.S
+            elif c.outDirs[2] == 1:
+                nextPos.x -= 1
+                nextPos.direction = Direction.W
+            elif c.outDirs[3] == 1:
+                nextPos.x += 1
+                nextPos.direction = Direction.E
+            else:
+                print("data error")
+
+            r.am(nextPos, 0)
+            return
+        else:
+            print("mission finish error")
+
+    def simulationFinishHandler(self):
+        self.finished = True
+        elapsed = time() - self.time
+        process = [(r.robotType, r.processCount) for r in self.robots]
+        self.timeSeries.append((elapsed, self.getTotalProcessed()))
+        self.simulationFinished.emit(
+            SimulationReport(self.windowTitle(), elapsed, process, self.timeSeries, 0)
+        )
+
+    def start(self):
+        self.finished = False
+
+        self.time = time()
+        self.timeSeries = [(0, 0)]
+        self.recorder = QTimer(self)
+        self.recorder.timeout.connect(
+            lambda: self.timeSeries.append(
+                (len(self.timeSeries) * 5, self.getTotalProcessed())
+            )
+        )
+        self.recorder.start(5000)
+
+        self.moveHistory: list[tuple[Robot, NodePos, NodePos]] = []
+
+        self.loopTimer = QTimer(self)
+        self.loopTimer.setSingleShot(True)
+        self.loopTimer.timeout.connect(self.loop)
+
+        self.loopTimer.start(self.speed)
+
+    def loop(self):
+        allBooked = []
+
+        for r in self.robots:
+            r.currentPos = r.operatingPos
+            allBooked.append(r.currentPos.posTuple())
+
+        # self.robots 우선순위 순으로 재정렬?
+
+        for r in self.robots:
+            if r.currentPos == r.dest:
+                self.missionFinishHandler(r.robotNum, r.currentPos)
+
+                if r.charging:
+                    r.waitOperation()
+                    continue
+
+            booked = list(filter(lambda x: x != r.currentPos.posTuple(), allBooked))
+            for opRobot in Robot._registry[r.simulName]:
+                if opRobot.robotNum == r.robotNum:
+                    continue
+                booked.append(
+                    opRobot.operatingPos.posTuple(),
+                )
+            booked = list(set(booked))
+
+            route = evaluateRoute(r.currentPos, r.dest, booked)
+            if route is not None:
+                r.routeCache = route
+                r.operatingPos = route[1]
+                allBooked.append(r.operatingPos.posTuple())
+                r.doConveyOperation(r.operatingPos)
+                self.pushHistory(r)
+                continue
+            else:
+                if r.routeCache:
+                    curr = r.routeCache.index(r.currentPos)
+                    nextPos = r.routeCache[curr + 1]
+                else:
+                    nextPos = evaluateRoute(r.currentPos, r.dest)[1]
+                    if nextPos.posTuple() in booked:
+                        r.waitOperation()
+                        continue
+                    else:
+                        r.operatingPos = nextPos
+                        allBooked.append(r.operatingPos.posTuple())
+                        r.doConveyOperation(r.operatingPos)
+                        self.pushHistory(r)
+                        continue
+
+        if not self.finished:
+            self.loopTimer.start(self.speed)
 
     def add_color_info(self, layout, color, text):
         color_layout = QHBoxLayout()
@@ -275,3 +344,65 @@ class Simulator(QWidget):
         color_layout.setStretchFactor(QLabel(text), 3)
         layout.addLayout(color_layout)
         layout.setSpacing(3)
+
+    # @Slot(int, NodePos)
+    # def missionFinishHandler(self, num: int, position: NodePos):
+    #     for cell in self.cells:
+    #         if cell.nodeLoc == position.point().toTuple():
+    #             rbt = self.robots[num]
+
+    #             if cell.cellType == "chute":
+    #                 if self.logistics == sum([r.processCount for r in self.robots]):
+    #                     self.simulationFinishHandler()
+    #                     self.close()
+    #                     return
+    #                 if self.robots[num].power < 10:
+    #                     charges = list(
+    #                         filter(
+    #                             lambda x: x.cellType == "chargingstation"
+    #                             and not x.occupied,
+    #                             self.cells,
+    #                         )
+    #                     )
+    #                     nodes, edges = gen()
+    #                     dist, prevs = dijkstra(nodes, edges, position)
+    #                     min = (None, float("inf"))
+    #                     for c in charges:
+    #                         node = NodePos(*c.nodeLoc, Direction.N)
+    #                         if dist[node] < min[1]:
+    #                             min = (node, dist[node])
+    #                     selected = [
+    #                         c for c in charges if c.nodeLoc == min[0].posTuple()
+    #                     ]
+    #                     selected[0].occupy()
+    #                     route = evaluateRoute(position, min[0])
+    #                     rbt.assignMission(route, 0)
+    #                     return
+    #                 nextcell = self.findNearestEntrance(position, self.buffer)
+    #                 route = evaluateRoute(position, nextcell)
+    #                 rbt.assignMission(route, 0)
+    #             elif cell.cellType == "workstation":
+    #                 if self.logisticsLeft == 0:
+    #                     return
+    #                 randomindex = randint(0, len(self.chute) - 1)
+    #                 nextcell = self.chute[randomindex].pos
+    #                 route = evaluateRouteToCell(rbt.route[len(rbt.route) - 1], nextcell)
+    #                 rbt.assignMission(route, 8)
+    #                 self.logisticsLeft -= 1
+    #                 self.logisticsLabel.setText(f"Left : {self.logisticsLeft}")
+    #             elif cell.cellType == "buffer":
+    #                 nextcell = self.workstation[0].pos
+    #                 route = evaluateRouteToCell(rbt.route[len(rbt.route) - 1], nextcell)
+    #                 rbt.assignMission(route, 0)
+    #             elif cell.cellType == "chargingstation":
+    #                 if rbt.power < 20:
+    #                     # rbt.chargeOperation(cell)
+    #                     rbt.setRoute(rbt.route[-1:])
+    #                     rbt.charge()
+    #                     return
+    #                 nextcell = self.findNearestEntrance(position, self.buffer)
+    #                 route = evaluateRoute(position, nextcell)
+    #                 rbt.assignMission(route, 0)
+    #                 cell.deOccupy()
+    #             else:
+    #                 print("runtime fatal robotnum", num, "cell not found on", position)

@@ -31,14 +31,14 @@ IMAGE_A = "image/all_arrow.png"
 class Cell(QGraphicsObject):
     def __init__(self, loc, outdir, cellType="cell", parent=None):
         super().__init__(parent)
+        self.setAcceptHoverEvents(True)
         self.setPos(loc[0] * 100, loc[1] * 100)
+
         self.nodeLoc = loc
-
         self.occupied = False
-
-        cell_colors = colorDict()
         self.cellType = cellType
-        self.color = cell_colors[cellType]
+        self.outDirs = outdir
+
         if outdir == (1, 0, 0, 0):
             self.pixmap = IMAGE_N
         elif outdir == (0, 0, 1, 0):
@@ -56,7 +56,9 @@ class Cell(QGraphicsObject):
         else:
             self.pixmap = None
 
-        self.setAcceptHoverEvents(True)
+        cell_colors = colorDict()
+        self.color = cell_colors[cellType]
+
         self.infoWindow = CellInfoWindow(self.pos().toTuple(), cellType)
 
     def boundingRect(self) -> QRectF:
@@ -70,7 +72,6 @@ class Cell(QGraphicsObject):
     def mousePressEvent(self, event: QGraphicsSceneMouseEvent):
         self.infoWindow.show()
 
-    # charge
     def occupy(self):
         self.occupied = True
 

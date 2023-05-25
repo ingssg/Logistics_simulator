@@ -175,7 +175,7 @@ def evaluateRoute(src: NodePos, dest: NodePos, tempBlocked: list[tuple[int, int]
         r = backTrack(prevs, src, dest)
         return r
     except:
-        print("hello")
+        print(f"route none {src} to {dest}")
 
 
 def evaluateRouteToCell(src: NodePos, dest: tuple[int, int]):
@@ -189,4 +189,8 @@ def evaluateRouteToCell(src: NodePos, dest: tuple[int, int]):
         if tempdist < min[1]:
             min = (temp, tempdist)
 
-    return backTrack(prevs, src, min[0])
+    try:
+        r = backTrack(prevs, src, min[0])
+        return r
+    except:
+        print(f"route none {src} to {dest}")

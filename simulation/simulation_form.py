@@ -125,7 +125,7 @@ class SimulationForm(QWidget):
         runinfo = {
             "belt": self.belt_field.text(),
             "dump": self.dump_field.text(),
-            "logis": self.logistic_field.text()
+            "logis": self.logistic_field.text(),
         }
         registerRunInfo(runinfo)
         if not self.isFormValid():
@@ -139,7 +139,7 @@ class SimulationForm(QWidget):
             self.speed.currentText(),
         )
         self.simulator = Simulator(p)
-        self.simulator.simulationFinished.connect(self.terminate)
+        # self.simulator.simulationFinished.connect(self.terminate)
         self.simulator.show()
 
     def isFormValid(self) -> bool:

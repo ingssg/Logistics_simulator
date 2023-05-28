@@ -146,13 +146,16 @@ def dijkstra(
             # cuz current route is longer
             continue
 
-        for neighbor, weight in edges[currNode]:
-            alt = currDist + weight
-            if alt < distances[neighbor]:
-                distances[neighbor] = alt
-                heapq.heappush(queue, (alt, neighbor))
+        try:
+            for neighbor, weight in edges[currNode]:
+                alt = currDist + weight
+                if alt < distances[neighbor]:
+                    distances[neighbor] = alt
+                    heapq.heappush(queue, (alt, neighbor))
 
-                prevs[neighbor] = currNode
+                    prevs[neighbor] = currNode
+        except KeyError:
+            print(f"keyerror edges[currNode] currNode {currNode}")
 
     return distances, prevs
 

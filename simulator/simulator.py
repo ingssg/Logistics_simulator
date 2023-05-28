@@ -169,7 +169,15 @@ class Simulator(QWidget):
                     break
 
     def deployRobot(self, pos: NodePos, type: int):
-        r = Robot(CELLSIZE, len(self.robots), type, pos, self.speed, self.windowTitle())
+        r = Robot(
+            CELLSIZE,
+            len(self.robots),
+            type,
+            pos,
+            self.speed,
+            self.windowTitle(),
+            self.getNearestEntrance(pos),
+        )
         r.setParent(self)
         r.missionFinished.connect(self.missionFinishHandler)
         self.robots.append(r)
@@ -232,7 +240,6 @@ class Simulator(QWidget):
                 return
 
         elif t == WORK:
-            print("missionfinish workstation")
             if self.logisticsLeft == 0:
                 r.stopped = True
                 return
@@ -241,7 +248,6 @@ class Simulator(QWidget):
                 randint(0, len(self.cells[CHUTE]) - 1)
             ].nodeLoc
             n = evaluateRouteToCell(robotPos, destChute)
-            print(n)
             r.setDest(n[-1], 8)
             self.logisticsLeft -= 1
             self.logisticsLabel.setText(f"Left : {self.logisticsLeft}")
@@ -307,156 +313,216 @@ class Simulator(QWidget):
         self.moveHistory: list[tuple[Robot, NodePos, NodePos]] = []
         self.errorFlag = False
         self.errorHold = None
+        # self.booked = [r.currentPos.posTuple() for r in self.robots]
 
         self.loopTimer = QTimer(self)
         self.loopTimer.setSingleShot(True)
         self.loopTimer.timeout.connect(self.loop)
         self.loop()
 
+    def posList(self, l: list[Robot], r: Robot):
+        return [
+            o.operatingPos.posTuple()
+            for o in l
+            if o.operatingPos.posTuple() != r.currentPos.posTuple()
+        ]
+
     def loop(self):
-        activated = [r for r in self.robots if not r.stopped]
-        allBooked = []
-        if self.errorFlag:
-            for r in self.robots:
-                allBooked.extend([r.currentPos.posTuple(), r.operatingPos.posTuple()])
-        else:
-            for r in self.robots:
-                r.currentPos = r.operatingPos
-                allBooked.append(r.currentPos.posTuple())
+        delayed: list[Robot] = [r for r in self.robots if not r.stopped]
+        worked: list[Robot] = [r for r in self.robots if r.stopped]
 
-        allBooked = list(set(allBooked))
-
-        # error handling #
-        # self.robots 우선순위 순으로 재정렬?
-        # if error situation happens:
-        # grab the robot -> errored=r
-        # break the loop
-        # reorder self.robots -> errored robot is 0th
-        # rewind via movehistory until grabbed robot moves
-        # if mitigated, restart loop
-
-        if self.errorFlag:
-            print(self.errorHold.robotNum)
-            last = self.moveHistory.pop()
-            lastRobot = last[0]
-
-            if lastRobot.robotNum == self.errorHold.robotNum:
-                self.loopTimer.start(self.speed)
-                return
-
-            # self.errorHold = activated[0]
-            self.errorHold.waitCount = 0
-            r = self.errorHold
-
-            booked = list(filter(lambda x: x != r.currentPos.posTuple(), allBooked))
-            for op in Robot._registry[r.simulName]:
-                if op.robotNum == r.robotNum:
-                    continue
-                booked.append(op.operatingPos.posTuple())
-            booked = list(set(booked))
-
-            # lastRobot.doConveyOperation(last[1])
-            lastRobot.setPos(last[1].toViewPos().x, last[1].toViewPos().y)
-            lastRobot.setRotation(last[1].degree())
-            # if lastRobot.currentPos.posTuple()==lastRobot.operatingPos.posTuple():
-            # 아직 이동명령을 안받았음
-            # last[2] 가 current 임
-
-            lastRobot.waitCount = 0
-            lastRobot.currentPos = last[1]
-            lastRobot.operatingPos = last[1]
-            booked.remove(last[2].posTuple())
-            booked.append(last[1].posTuple())
-            allBooked.remove(last[2].posTuple())
-            allBooked.append(last[1].posTuple())
-            booked = list(set(booked))
-            allBooked = list(set(allBooked))
-
-            route = evaluateRoute(r.currentPos, r.dest, booked)
-            if route is not None:
-                self.errorFlag = False
-            else:
-                if r.routeCache:
-                    curr = r.routeCache.index(r.currentPos)
-                    nextPos = r.routeCache[curr + 1]
-                else:
-                    nextPos = evaluateRoute(r.currentPos, r.dest)[1]
-
-                if nextPos.posTuple() in booked:
-                    print(r.robotNum, nextPos.posTuple(), booked)
-                    self.errorFlag = True
-                else:
-                    self.errorFlag = False
-        ### error handling###
-
-        if self.errorFlag:
-            self.loopTimer.start(self.speed)
-            return
-        else:
-            # print("error escaped")
-            pass
-
-        for r in activated:
-            ### error detection ###
-            if r.waitCount > ERRORTHRESHOLD:
-                self.errorFlag = True
-                self.errorHold = r
-                # reset waitcount
-                for t in self.robots:
-                    # t.waitCount = 0
-                    t.routeCache = []
-                self.robots = [t for t in self.robots if t.robotNum != r.robotNum]
-                self.robots.insert(0, r)
-                break
-
-            if (self.errorHold is not None) and (r.robotNum == self.errorHold.robotNum):
-                # self.errorFlag = False
-                self.errorHold = None
-            ### error detection ###
-
-            ### move operation assignment ###
+        temp = []
+        for r in delayed:
+            r.currentPos = r.operatingPos
             if r.currentPos == r.dest or r.charging:
+                temp.append(r)
+                worked.append(r)
                 self.missionFinishHandler(r.robotNum, r.currentPos)
+        delayed = [o for o in delayed if o not in temp]
 
-                t, c = self.findCell(r.currentPos)
-                if t == WORK and r.box > 0:
-                    print(f"current==dest work {r.currentPos} {r.dest}")
-                # r.waitOperation()
-                continue
+        while delayed:
+            temp = []
+            for r in delayed:
+                booked = self.posList(self.robots, r)
+                route = evaluateRoute(r.currentPos, r.dest, booked)
 
-            booked = list(filter(lambda x: x != r.currentPos.posTuple(), allBooked))
-            for op in Robot._registry[r.simulName]:
-                if op.robotNum == r.robotNum:
+                if route is not None:
+                    r.operatingPos = route[1]
+                    temp.append(r)
+                    worked.append(r)
                     continue
-                booked.append(op.operatingPos.posTuple())
-            booked = list(set(booked))
-
-            route = evaluateRoute(r.currentPos, r.dest, booked)
-            if route is not None:
-                r.routeCache = route
-                r.operatingPos = route[1]
-            else:
-                if r.routeCache:
-                    curr = r.routeCache.index(r.currentPos)
-                    nextPos = r.routeCache[curr + 1]
                 else:
                     nextPos = evaluateRoute(r.currentPos, r.dest)[1]
+                    if nextPos.posTuple() in self.posList(delayed, r):
+                        continue
+                    elif nextPos.posTuple() in self.posList(worked, r):
+                        temp.append(r)
+                        worked.append(r)
+                        continue
+                    else:
+                        r.operatingPos = nextPos
+                        temp.append(r)
+                        worked.append(r)
+                        continue
 
-                if nextPos.posTuple() in booked:
-                    r.waitOperation()
-                    continue
-                else:
-                    r.operatingPos = nextPos
+            # 이 delayed를 사용해서 할수 있을거 같은데?
+            if temp:
+                delayed = [o for o in delayed if o not in temp]
+            else:
+                pass
 
-            allBooked.remove(r.currentPos.posTuple())
-            allBooked.append(r.operatingPos.posTuple())
+        for r in worked:
             self.pushHistory(r)
             r.doConveyOperation(r.operatingPos)
-            continue
 
         if not self.finished:
             self.loopTimer.start(self.speed)
         return
+
+    # def loop(self):
+    #     activated = [r for r in self.robots if not r.stopped]
+    #     allBooked = []
+    #     if self.errorFlag:
+    #         for r in self.robots:
+    #             allBooked.extend([r.currentPos.posTuple(), r.operatingPos.posTuple()])
+    #     else:
+    #         for r in self.robots:
+    #             r.currentPos = r.operatingPos
+    #             allBooked.append(r.currentPos.posTuple())
+
+    #     allBooked = list(set(allBooked))
+
+    #     # error handling #
+    #     # self.robots 우선순위 순으로 재정렬?
+    #     # if error situation happens:
+    #     # grab the robot -> errored=r
+    #     # break the loop
+    #     # reorder self.robots -> errored robot is 0th
+    #     # rewind via movehistory until grabbed robot moves
+    #     # if mitigated, restart loop
+
+    #     if self.errorFlag:
+    #         print(self.errorHold.robotNum)
+    #         last = self.moveHistory.pop()
+    #         lastRobot = last[0]
+
+    #         if lastRobot.robotNum == self.errorHold.robotNum:
+    #             self.loopTimer.start(self.speed)
+    #             return
+
+    #         # self.errorHold = activated[0]
+    #         self.errorHold.waitCount = 0
+    #         r = self.errorHold
+
+    #         booked = list(filter(lambda x: x != r.currentPos.posTuple(), allBooked))
+    #         for op in Robot._registry[r.simulName]:
+    #             if op.robotNum == r.robotNum:
+    #                 continue
+    #             booked.append(op.operatingPos.posTuple())
+    #         booked = list(set(booked))
+
+    #         # lastRobot.doConveyOperation(last[1])
+    #         lastRobot.setPos(last[1].toViewPos().x, last[1].toViewPos().y)
+    #         lastRobot.setRotation(last[1].degree())
+    #         # if lastRobot.currentPos.posTuple()==lastRobot.operatingPos.posTuple():
+    #         # 아직 이동명령을 안받았음
+    #         # last[2] 가 current 임
+
+    #         lastRobot.waitCount = 0
+    #         lastRobot.currentPos = last[1]
+    #         lastRobot.operatingPos = last[1]
+    #         booked.remove(last[2].posTuple())
+    #         booked.append(last[1].posTuple())
+    #         allBooked.remove(last[2].posTuple())
+    #         allBooked.append(last[1].posTuple())
+    #         booked = list(set(booked))
+    #         allBooked = list(set(allBooked))
+
+    #         route = evaluateRoute(r.currentPos, r.dest, booked)
+    #         if route is not None:
+    #             self.errorFlag = False
+    #         else:
+    #             if r.routeCache:
+    #                 curr = r.routeCache.index(r.currentPos)
+    #                 nextPos = r.routeCache[curr + 1]
+    #             else:
+    #                 nextPos = evaluateRoute(r.currentPos, r.dest)[1]
+
+    #             if nextPos.posTuple() in booked:
+    #                 print(r.robotNum, nextPos.posTuple(), booked)
+    #                 self.errorFlag = True
+    #             else:
+    #                 self.errorFlag = False
+    #     ### error handling###
+
+    #     if self.errorFlag:
+    #         self.loopTimer.start(self.speed)
+    #         return
+    #     else:
+    #         # print("error escaped")
+    #         pass
+
+    #     for r in activated:
+    #         ### error detection ###
+    #         if r.waitCount > ERRORTHRESHOLD:
+    #             self.errorFlag = True
+    #             self.errorHold = r
+    #             # reset waitcount
+    #             for t in self.robots:
+    #                 # t.waitCount = 0
+    #                 t.routeCache = []
+    #             self.robots = [t for t in self.robots if t.robotNum != r.robotNum]
+    #             self.robots.insert(0, r)
+    #             break
+
+    #         if (self.errorHold is not None) and (r.robotNum == self.errorHold.robotNum):
+    #             # self.errorFlag = False
+    #             self.errorHold = None
+    #         ### error detection ###
+
+    #         ### move operation assignment ###
+    #         if r.currentPos == r.dest or r.charging:
+    #             self.missionFinishHandler(r.robotNum, r.currentPos)
+
+    #             t, c = self.findCell(r.currentPos)
+    #             if t == WORK and r.box > 0:
+    #                 print(f"current==dest work {r.currentPos} {r.dest}")
+    #             # r.waitOperation()
+    #             continue
+
+    #         booked = list(filter(lambda x: x != r.currentPos.posTuple(), allBooked))
+    #         for op in Robot._registry[r.simulName]:
+    #             if op.robotNum == r.robotNum:
+    #                 continue
+    #             booked.append(op.operatingPos.posTuple())
+    #         booked = list(set(booked))
+
+    #         route = evaluateRoute(r.currentPos, r.dest, booked)
+    #         if route is not None:
+    #             r.routeCache = route
+    #             r.operatingPos = route[1]
+    #         else:
+    #             if r.routeCache:
+    #                 curr = r.routeCache.index(r.currentPos)
+    #                 nextPos = r.routeCache[curr + 1]
+    #             else:
+    #                 nextPos = evaluateRoute(r.currentPos, r.dest)[1]
+
+    #             if nextPos.posTuple() in booked:
+    #                 r.waitOperation()
+    #                 continue
+    #             else:
+    #                 r.operatingPos = nextPos
+
+    #         allBooked.remove(r.currentPos.posTuple())
+    #         allBooked.append(r.operatingPos.posTuple())
+    #         self.pushHistory(r)
+    #         r.doConveyOperation(r.operatingPos)
+    #         continue
+
+    #     if not self.finished:
+    #         self.loopTimer.start(self.speed)
+    #     return
 
     def add_color_info(self, layout, color, text):
         color_layout = QHBoxLayout()
@@ -473,65 +539,3 @@ class Simulator(QWidget):
         color_layout.setStretchFactor(QLabel(text), 3)
         layout.addLayout(color_layout)
         layout.setSpacing(3)
-
-    # @Slot(int, NodePos)
-    # def missionFinishHandler(self, num: int, position: NodePos):
-    #     for cell in self.cells:
-    #         if cell.nodeLoc == position.point().toTuple():
-    #             rbt = self.robots[num]
-
-    #             if cell.cellType == "chute":
-    #                 if self.logistics == sum([r.processCount for r in self.robots]):
-    #                     self.simulationFinishHandler()
-    #                     self.close()
-    #                     return
-    #                 if self.robots[num].power < 10:
-    #                     charges = list(
-    #                         filter(
-    #                             lambda x: x.cellType == "chargingstation"
-    #                             and not x.occupied,
-    #                             self.cells,
-    #                         )
-    #                     )
-    #                     nodes, edges = gen()
-    #                     dist, prevs = dijkstra(nodes, edges, position)
-    #                     min = (None, float("inf"))
-    #                     for c in charges:
-    #                         node = NodePos(*c.nodeLoc, Direction.N)
-    #                         if dist[node] < min[1]:
-    #                             min = (node, dist[node])
-    #                     selected = [
-    #                         c for c in charges if c.nodeLoc == min[0].posTuple()
-    #                     ]
-    #                     selected[0].occupy()
-    #                     route = evaluateRoute(position, min[0])
-    #                     rbt.assignMission(route, 0)
-    #                     return
-    #                 nextcell = self.findNearestEntrance(position, self.buffer)
-    #                 route = evaluateRoute(position, nextcell)
-    #                 rbt.assignMission(route, 0)
-    #             elif cell.cellType == "workstation":
-    #                 if self.logisticsLeft == 0:
-    #                     return
-    #                 randomindex = randint(0, len(self.chute) - 1)
-    #                 nextcell = self.chute[randomindex].pos
-    #                 route = evaluateRouteToCell(rbt.route[len(rbt.route) - 1], nextcell)
-    #                 rbt.assignMission(route, 8)
-    #                 self.logisticsLeft -= 1
-    #                 self.logisticsLabel.setText(f"Left : {self.logisticsLeft}")
-    #             elif cell.cellType == "buffer":
-    #                 nextcell = self.workstation[0].pos
-    #                 route = evaluateRouteToCell(rbt.route[len(rbt.route) - 1], nextcell)
-    #                 rbt.assignMission(route, 0)
-    #             elif cell.cellType == "chargingstation":
-    #                 if rbt.power < 20:
-    #                     # rbt.chargeOperation(cell)
-    #                     rbt.setRoute(rbt.route[-1:])
-    #                     rbt.charge()
-    #                     return
-    #                 nextcell = self.findNearestEntrance(position, self.buffer)
-    #                 route = evaluateRoute(position, nextcell)
-    #                 rbt.assignMission(route, 0)
-    #                 cell.deOccupy()
-    #             else:
-    #                 print("runtime fatal robotnum", num, "cell not found on", position)

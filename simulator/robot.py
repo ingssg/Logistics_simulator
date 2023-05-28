@@ -41,7 +41,14 @@ class Robot(QGraphicsObject):
     missionFinished = Signal(int, NodePos)
 
     def __init__(
-        self, size: int, rNum: int, rType: int, position: NodePos, speed, simulName: str
+        self,
+        size: int,
+        rNum: int,
+        rType: int,
+        position: NodePos,
+        speed,
+        simulName: str,
+        initDest: NodePos,
     ):
         super().__init__()
         self.setPos(position.toViewPos().x, position.toViewPos().y)
@@ -67,10 +74,10 @@ class Robot(QGraphicsObject):
         self.pixmap_current = self.pixmap_default
 
         self.charging = False
-        # if simulation finished, robot dont move
         self.stopped = False
+        # if simulation finished, robot dont move
 
-        self.dest: NodePos = position
+        self.dest: NodePos = initDest
         self.currentPos: NodePos = position
         self.operatingPos: NodePos = position
         self.routeCache: list[NodePos] = []
@@ -124,6 +131,10 @@ class Robot(QGraphicsObject):
         anim.start(QAbstractAnimation.DeleteWhenStopped)
 
     def doConveyOperation(self, nextPos: NodePos):
+        if nextPos == self.currentPos:
+            self.waitOperation()
+            return
+
         self.waitCount = 0
         if (nextPos.degree() - self.currentPos.degree()) != 0:
             self.rotateOperation(nextPos.degree())

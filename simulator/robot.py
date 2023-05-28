@@ -93,7 +93,7 @@ class Robot(QGraphicsObject):
     def mousePressEvent(self, e):
         print(f"Robot {self.robotNum}")
         print(f"dest {self.dest}")
-        print(f"waitcount {self.waitCount}")
+        print(f"power {self.power}")
         print("---")
 
     def dumpPixmap(self, box: int):
@@ -109,10 +109,15 @@ class Robot(QGraphicsObject):
         self.stopped = False
         self.power -= 1
 
+        if self.currentPos.direction == 0 and degree == 270:
+            endValue = -90
+        else:
+            endValue = degree
+
         anim = QVariantAnimation(self)
         currRot = int(self.rotation())
         anim.setStartValue(currRot)
-        anim.setEndValue(degree)
+        anim.setEndValue(endValue)
         anim.setDuration(self.speed)
         anim.setEasingCurve(QEasingCurve.Linear)
         anim.valueChanged.connect(self.setRotation)

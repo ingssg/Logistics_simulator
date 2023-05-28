@@ -2,8 +2,8 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import TYPE_CHECKING
 from random import randint
-from time import time
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from time import sleep, time
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QMessageBox, QVBoxLayout, QWidget
 from PySide6.QtGui import QCloseEvent, QIcon, QColor, QFont
 from PySide6.QtWidgets import QGraphicsScene, QGraphicsView
 from PySide6.QtCore import QTimer, Qt, Signal, Slot
@@ -130,7 +130,8 @@ class Simulator(QWidget):
     def findLastBuffer(self, w: Cell):
         hold = w
         p = w.nodeLoc
-        changed = False
+        # changed = False
+        changed = True
         while changed:
             changed = False
             for b in self.cells[BUFFER]:
@@ -176,7 +177,7 @@ class Simulator(QWidget):
             pos,
             self.speed,
             self.windowTitle(),
-            self.getNearestEntrance(pos),
+            self.getNearestWork(pos),
         )
         r.setParent(self)
         r.missionFinished.connect(self.missionFinishHandler)
@@ -208,13 +209,32 @@ class Simulator(QWidget):
                 min = (node, dist[node])
         return min[0]
 
+    def getNearestWork(self, src: NodePos):
+        nodes, edges = gen()
+        dist, prevs = dijkstra(nodes, edges, src)
+        min = (None, float("inf"))
+        for b in self.cells[WORK]:
+            if b.outDirs.index(1) == 0:
+                dir = Direction.N
+            elif b.outDirs.index(1) == 1:
+                dir = Direction.S
+            elif b.outDirs.index(1) == 2:
+                dir = Direction.W
+            elif b.outDirs.index(1) == 3:
+                dir = Direction.E
+            node = NodePos(*b.nodeLoc, dir)
+            if dist[node] < min[1]:
+                min = (node, dist[node])
+        return min[0]
+
     def getTotalProcessed(self):
         return sum(r.processCount for r in self.robots)
 
     def pushHistory(self, r: Robot):
         if len(self.moveHistory) == len(self.robots) * ERRORTHRESHOLD**3:
             self.moveHistory.pop(0)
-        self.moveHistory.append((r, r.currentPos, r.operatingPos))
+        self.moveHistory.append((r, r.operatingPos))
+        # self.moveHistory.append((r, r.currentPos, r.operatingPos))
 
     def missionFinishHandler(self, robotNum: int, robotPos: NodePos):
         t, c = self.findCell(robotPos)
@@ -235,8 +255,11 @@ class Simulator(QWidget):
                 r.setDest(evaluateRouteToCell(robotPos, charge.nodeLoc)[-1], 0)
                 charge.occupy()
                 return
-            else:
+            elif self.finished:
                 r.setDest(self.getNearestEntrance(robotPos), 0)
+                return
+            else:
+                r.setDest(self.getNearestWork(robotPos), 0)
                 return
 
         elif t == WORK:
@@ -278,15 +301,21 @@ class Simulator(QWidget):
                 r.charging = True
                 r.power += 1
                 return
+            elif self.finished:
+                r.setDest(self.getNearestEntrance(robotPos), 0)
+                return
             else:
                 r.charging = False
-                r.setDest(self.getNearestEntrance(robotPos), 0)
+                r.setDest(self.getNearestWork(robotPos), 0)
                 return
 
         else:
             print("mission finish error")
 
     def simulationFinishHandler(self):
+        if self.finished:
+            return
+
         self.loopTimer.stop()
         self.finished = True
         elapsed = time() - self.time
@@ -295,7 +324,13 @@ class Simulator(QWidget):
         self.simulationFinished.emit(
             SimulationReport(self.windowTitle(), elapsed, process, self.timeSeries, 0)
         )
-        print("alert simulation finished")
+
+        confirmation = QMessageBox()
+        confirmation.setWindowTitle("Simulation")
+        confirmation.setText(f"Simulation {self.windowTitle()} finished.")
+        confirmation.setStandardButtons(QMessageBox.Ok)
+        confirmation.setDefaultButton(QMessageBox.Ok)
+        confirmation.exec()
 
     def start(self):
         self.finished = False
@@ -310,10 +345,12 @@ class Simulator(QWidget):
         )
         self.recorder.start(5000)
 
-        self.moveHistory: list[tuple[Robot, NodePos, NodePos]] = []
+        self.moveHistory: list[tuple[Robot, NodePos]] = []
+        # self.moveHistory: list[tuple[Robot, NodePos, NodePos]] = []
         self.errorFlag = False
         self.errorHold = None
         # self.booked = [r.currentPos.posTuple() for r in self.robots]
+        self.errors = 0
 
         self.loopTimer = QTimer(self)
         self.loopTimer.setSingleShot(True)
@@ -330,6 +367,8 @@ class Simulator(QWidget):
     def loop(self):
         delayed: list[Robot] = [r for r in self.robots if not r.stopped]
         worked: list[Robot] = [r for r in self.robots if r.stopped]
+
+        tempCount = 0
 
         temp = []
         for r in delayed:
@@ -354,6 +393,12 @@ class Simulator(QWidget):
                 else:
                     nextPos = evaluateRoute(r.currentPos, r.dest)[1]
                     if nextPos.posTuple() in self.posList(delayed, r):
+                        # not tested
+                        # tempnext=evaluateRoute(r.currentPos,r.dest,[nextPos.posTuple()])
+                        # if tempnext is None:
+                        #     continue
+                        # else:
+                        #     r.operatingPos=tempnext[1]
                         continue
                     elif nextPos.posTuple() in self.posList(worked, r):
                         temp.append(r)
@@ -365,164 +410,80 @@ class Simulator(QWidget):
                         worked.append(r)
                         continue
 
-            # 이 delayed를 사용해서 할수 있을거 같은데?
             if temp:
                 delayed = [o for o in delayed if o not in temp]
             else:
-                pass
+                tempCount += 1
 
-        for r in worked:
-            self.pushHistory(r)
-            r.doConveyOperation(r.operatingPos)
+            if tempCount > 2:
+                self.errorFlag = True
+                self.errors += 1
 
-        if not self.finished:
+                for o in worked:
+                    o.operatingPos = o.currentPos
+                delayed.extend(worked)
+                worked = []
+                self.errorHold = delayed[0]
+                break
+
+        if not self.errorFlag:
+            for r in worked:
+                self.pushHistory(r)
+                r.doConveyOperation(r.operatingPos)
+
+            if not self.finished:
+                self.loopTimer.start(self.speed)
+            return
+        else:
+            self.loopTimer.timeout.disconnect(self.loop)
+            self.loopTimer.timeout.connect(self.errorLoop)
             self.loopTimer.start(self.speed)
-        return
+            return
 
-    # def loop(self):
-    #     activated = [r for r in self.robots if not r.stopped]
-    #     allBooked = []
-    #     if self.errorFlag:
-    #         for r in self.robots:
-    #             allBooked.extend([r.currentPos.posTuple(), r.operatingPos.posTuple()])
-    #     else:
-    #         for r in self.robots:
-    #             r.currentPos = r.operatingPos
-    #             allBooked.append(r.currentPos.posTuple())
+    def errorLoop(self):
+        """
+        일단 worked 먼저 돌리고 다시 시행
+        그다음에는 히스토리에서 돌리면서 시행
+        새 리스트=delayed+worked
 
-    #     allBooked = list(set(allBooked))
+        에러난 로봇이 움직일수 있으면
+        움직인 후
+        루프 시작
+        """
+        solved = False
 
-    #     # error handling #
-    #     # self.robots 우선순위 순으로 재정렬?
-    #     # if error situation happens:
-    #     # grab the robot -> errored=r
-    #     # break the loop
-    #     # reorder self.robots -> errored robot is 0th
-    #     # rewind via movehistory until grabbed robot moves
-    #     # if mitigated, restart loop
+        lastr, lastp = self.moveHistory.pop()
+        print(f"error loop pop {lastr} {lastp}")
+        if lastr != self.errorHold:
+            self.rewind(lastr, lastp)
 
-    #     if self.errorFlag:
-    #         print(self.errorHold.robotNum)
-    #         last = self.moveHistory.pop()
-    #         lastRobot = last[0]
+        booked = self.posList(self.robots, self.errorHold)
+        route = evaluateRoute(self.errorHold.currentPos, self.errorHold.dest, booked)
+        if route is not None:
+            self.errorHold.operatingPos = route[1]
+            solved = True
+        else:
+            nextPos = evaluateRoute(self.errorHold.currentPos, self.errorHold.dest)[1]
+            if nextPos.posTuple() in self.posList(self.robots, self.errorHold):
+                solved = False
+            else:
+                self.errorHold.operatingPos = nextPos
+                solved = True
 
-    #         if lastRobot.robotNum == self.errorHold.robotNum:
-    #             self.loopTimer.start(self.speed)
-    #             return
+        if solved:
+            self.errorFlag = False
+            self.errorHold.doConveyOperation(self.errorHold.operatingPos)
+            self.loopTimer.timeout.disconnect(self.errorLoop)
+            self.loopTimer.timeout.connect(self.loop)
+            self.loopTimer.start(self.speed)
+        else:
+            self.loopTimer.start(self.speed)
 
-    #         # self.errorHold = activated[0]
-    #         self.errorHold.waitCount = 0
-    #         r = self.errorHold
-
-    #         booked = list(filter(lambda x: x != r.currentPos.posTuple(), allBooked))
-    #         for op in Robot._registry[r.simulName]:
-    #             if op.robotNum == r.robotNum:
-    #                 continue
-    #             booked.append(op.operatingPos.posTuple())
-    #         booked = list(set(booked))
-
-    #         # lastRobot.doConveyOperation(last[1])
-    #         lastRobot.setPos(last[1].toViewPos().x, last[1].toViewPos().y)
-    #         lastRobot.setRotation(last[1].degree())
-    #         # if lastRobot.currentPos.posTuple()==lastRobot.operatingPos.posTuple():
-    #         # 아직 이동명령을 안받았음
-    #         # last[2] 가 current 임
-
-    #         lastRobot.waitCount = 0
-    #         lastRobot.currentPos = last[1]
-    #         lastRobot.operatingPos = last[1]
-    #         booked.remove(last[2].posTuple())
-    #         booked.append(last[1].posTuple())
-    #         allBooked.remove(last[2].posTuple())
-    #         allBooked.append(last[1].posTuple())
-    #         booked = list(set(booked))
-    #         allBooked = list(set(allBooked))
-
-    #         route = evaluateRoute(r.currentPos, r.dest, booked)
-    #         if route is not None:
-    #             self.errorFlag = False
-    #         else:
-    #             if r.routeCache:
-    #                 curr = r.routeCache.index(r.currentPos)
-    #                 nextPos = r.routeCache[curr + 1]
-    #             else:
-    #                 nextPos = evaluateRoute(r.currentPos, r.dest)[1]
-
-    #             if nextPos.posTuple() in booked:
-    #                 print(r.robotNum, nextPos.posTuple(), booked)
-    #                 self.errorFlag = True
-    #             else:
-    #                 self.errorFlag = False
-    #     ### error handling###
-
-    #     if self.errorFlag:
-    #         self.loopTimer.start(self.speed)
-    #         return
-    #     else:
-    #         # print("error escaped")
-    #         pass
-
-    #     for r in activated:
-    #         ### error detection ###
-    #         if r.waitCount > ERRORTHRESHOLD:
-    #             self.errorFlag = True
-    #             self.errorHold = r
-    #             # reset waitcount
-    #             for t in self.robots:
-    #                 # t.waitCount = 0
-    #                 t.routeCache = []
-    #             self.robots = [t for t in self.robots if t.robotNum != r.robotNum]
-    #             self.robots.insert(0, r)
-    #             break
-
-    #         if (self.errorHold is not None) and (r.robotNum == self.errorHold.robotNum):
-    #             # self.errorFlag = False
-    #             self.errorHold = None
-    #         ### error detection ###
-
-    #         ### move operation assignment ###
-    #         if r.currentPos == r.dest or r.charging:
-    #             self.missionFinishHandler(r.robotNum, r.currentPos)
-
-    #             t, c = self.findCell(r.currentPos)
-    #             if t == WORK and r.box > 0:
-    #                 print(f"current==dest work {r.currentPos} {r.dest}")
-    #             # r.waitOperation()
-    #             continue
-
-    #         booked = list(filter(lambda x: x != r.currentPos.posTuple(), allBooked))
-    #         for op in Robot._registry[r.simulName]:
-    #             if op.robotNum == r.robotNum:
-    #                 continue
-    #             booked.append(op.operatingPos.posTuple())
-    #         booked = list(set(booked))
-
-    #         route = evaluateRoute(r.currentPos, r.dest, booked)
-    #         if route is not None:
-    #             r.routeCache = route
-    #             r.operatingPos = route[1]
-    #         else:
-    #             if r.routeCache:
-    #                 curr = r.routeCache.index(r.currentPos)
-    #                 nextPos = r.routeCache[curr + 1]
-    #             else:
-    #                 nextPos = evaluateRoute(r.currentPos, r.dest)[1]
-
-    #             if nextPos.posTuple() in booked:
-    #                 r.waitOperation()
-    #                 continue
-    #             else:
-    #                 r.operatingPos = nextPos
-
-    #         allBooked.remove(r.currentPos.posTuple())
-    #         allBooked.append(r.operatingPos.posTuple())
-    #         self.pushHistory(r)
-    #         r.doConveyOperation(r.operatingPos)
-    #         continue
-
-    #     if not self.finished:
-    #         self.loopTimer.start(self.speed)
-    #     return
+    def rewind(self, r: Robot, p: NodePos):
+        r.setPos(p.toViewPos().point())
+        r.setRotation(p.degree())
+        r.currentPos = p
+        r.operatingPos = p
 
     def add_color_info(self, layout, color, text):
         color_layout = QHBoxLayout()

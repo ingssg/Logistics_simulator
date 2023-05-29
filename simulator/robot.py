@@ -94,16 +94,6 @@ class Robot(QGraphicsObject):
         painter.drawText(QPointF(60, 80), str(self.robotNum))
 
     def mousePressEvent(self, e):
-        print(f"Robot {self.robotNum}")
-        print(f"dest {self.dest}")
-        print(f"power {self.power}")
-        print("---")
-        robotinfo = {
-            "num": self.robotNum,
-            "destination": self.route[-1],
-            "power": self.power,
-            "charging": self.charging,
-        }
         self.robotClicked.emit(self.robotNum)
 
     def dumpPixmap(self, box: int):

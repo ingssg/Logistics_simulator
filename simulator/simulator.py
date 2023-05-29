@@ -31,9 +31,9 @@ ERRORTHRESHOLD = 5
 WORK = "workstation"
 CHUTE = "chute"
 BUFFER = "buffer"
-CELL = "cell"
 CHARGE = "chargingstation"
 BLOCK = "block"
+CELL = "cell"
 
 ENTER = "enter"
 
@@ -101,6 +101,26 @@ class Simulator(QWidget):
         self.logisticsLabel = QLabel(f"Left : {self.logisticsLeft}")
         sideInfo_layout.addWidget(self.logisticsLabel)
 
+        self.robotInfoLabel = QLabel()
+        self.robotInfoLabel.setText(f"=====ROBOT INFO=====")
+        sideInfo_layout.addWidget(self.robotInfoLabel)
+
+        self.robotNumLabel = QLabel()
+        self.robotNumLabel.setText(f"Robot Num : None")
+        sideInfo_layout.addWidget(self.robotNumLabel)
+
+        self.robotDestLabel = QLabel()
+        self.robotDestLabel.setText(f"Destination : None")
+        sideInfo_layout.addWidget(self.robotDestLabel)
+
+        self.robotPowLabel = QLabel()
+        self.robotPowLabel.setText(f"Battery : None")
+        sideInfo_layout.addWidget(self.robotPowLabel)
+
+        self.robotChargingLabel = QLabel()
+        self.robotChargingLabel.setText(f"isCharging  : None")
+        sideInfo_layout.addWidget(self.robotChargingLabel)
+
         self.layout().addWidget(sideInfo)
 
         self.start()
@@ -126,7 +146,6 @@ class Simulator(QWidget):
         for i in range(map.grid[1] + 1):
             self.scene.addLine(0, i * CELLSIZE, map.grid[0] * CELLSIZE, i * CELLSIZE)
 
-    # useless
     def findLastBuffer(self, w: Cell):
         hold = w
         p = w.nodeLoc
@@ -181,8 +200,16 @@ class Simulator(QWidget):
         )
         r.setParent(self)
         r.missionFinished.connect(self.missionFinishHandler)
+        r.robotClicked.connect(self.displayRobotPanel)
         self.robots.append(r)
         self.scene.addItem(r)
+
+    def displayRobotPanel(self, rn):
+        r = self.robots[rn]
+        self.robotNumLabel.setText(f"Robot Num : {r.robotNum}")
+        self.robotDestLabel.setText(f"Destination : {r.dest}")
+        self.robotPowLabel.setText(f"Battery : {r.power}")
+        self.robotChargingLabel.setText(f"isCharging  : {r.charging}")
 
     def findCell(self, pos: NodePos):
         for k, v in self.cells.items():
@@ -441,15 +468,6 @@ class Simulator(QWidget):
             return
 
     def errorLoop(self):
-        """
-        일단 worked 먼저 돌리고 다시 시행
-        그다음에는 히스토리에서 돌리면서 시행
-        새 리스트=delayed+worked
-
-        에러난 로봇이 움직일수 있으면
-        움직인 후
-        루프 시작
-        """
         solved = False
 
         lastr, lastp = self.moveHistory.pop()

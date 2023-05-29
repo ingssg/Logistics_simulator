@@ -1,7 +1,7 @@
 from random import randrange
 
 from PySide6.QtCore import QPointF, QRectF, Qt
-from PySide6.QtGui import QPainter, QPixmap
+from PySide6.QtGui import QColor, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QGraphicsObject,
     QGraphicsSceneMouseEvent,
@@ -66,6 +66,8 @@ class Cell(QGraphicsObject):
 
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget):
         painter.fillRect(self.boundingRect(), self.color)
+        painter.setPen(QColor(0, 0, 0))
+        painter.drawRect(self.boundingRect())
         if self.pixmap != None:
             painter.drawPixmap(QPointF(0, 0), QPixmap(self.pixmap).scaled(100, 100))
 

@@ -11,7 +11,7 @@ from PySide6.QtCore import (
     QVariantAnimation,
     Signal,
 )
-from PySide6.QtGui import QPainter, QPixmap
+from PySide6.QtGui import QColor, QFont, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QGraphicsObject,
     QStyleOptionGraphicsItem,
@@ -39,6 +39,7 @@ DEAD_THRESHOLD = 2
 class Robot(QGraphicsObject):
     _registry: dict[str, list[Robot]] = {}
     missionFinished = Signal(int, NodePos)
+    robotClicked = Signal(int)
 
     def __init__(
         self,
@@ -88,13 +89,22 @@ class Robot(QGraphicsObject):
 
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget):
         painter.drawPixmap(QPointF(0, 0), self.pixmap_current, self.boundingRect())
-        painter.drawText(QPoint(10, 10), f"{self.robotNum}")
+        painter.setPen(QColor(0, 0, 0))
+        painter.setFont(QFont("Arial", 16))
+        painter.drawText(QPointF(60, 80), str(self.robotNum))
 
     def mousePressEvent(self, e):
         print(f"Robot {self.robotNum}")
         print(f"dest {self.dest}")
         print(f"power {self.power}")
         print("---")
+        robotinfo = {
+            "num": self.robotNum,
+            "destination": self.route[-1],
+            "power": self.power,
+            "charging": self.charging,
+        }
+        self.robotClicked.emit(self.robotNum)
 
     def dumpPixmap(self, box: int):
         if box != 0:

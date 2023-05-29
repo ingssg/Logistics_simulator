@@ -38,7 +38,7 @@ class SimulationForm(QWidget):
         form_layout = QFormLayout(self)
 
         self.name_label = QLabel(self)
-        self.name_label.setText("Name")
+        self.name_label.setText("SImul ID")
         self.belt_label = QLabel(self)
         self.belt_label.setText("Belt Type")
         self.dump_label = QLabel(self)

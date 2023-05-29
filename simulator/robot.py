@@ -30,14 +30,6 @@ from simulator.pathfinding import (
 )
 
 
-@dataclass
-class RobotInfo:
-    num: int
-    destination: str
-    power: int
-    charging: bool
-
-
 ROBOT_EMPTY_0 = "image/belt.png"
 ROBOT_CARRY_0 = "image/belt_logis.png"
 ROBOT_EMPTY_1 = "image/dump.png"
@@ -113,13 +105,6 @@ class Robot(QGraphicsObject):
             "charging": self.charging
         }
         registerRobotInfo(robotinfo)
-        # p = RobotInfo(
-        #     self.name_field.text(),
-        #     int(self.belt_field.text()),
-        #     int(self.dump_field.text()),
-        #     int(self.logistic_field.text()),
-        #     self.speed.currentText(),
-        # )
 
     def dumpPixmap(self, box: int):
         if box != 0:

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from dataclasses import dataclass
 from time import sleep
 from typing import TYPE_CHECKING
 from PySide6.QtCore import (
@@ -11,6 +12,7 @@ from PySide6.QtCore import (
     QVariantAnimation,
     Signal,
 )
+
 from PySide6.QtGui import QColor, QFont, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QGraphicsObject,
@@ -25,6 +27,7 @@ from simulator.pathfinding import (
     evaluateRoute,
     facingEach,
 )
+
 
 ROBOT_EMPTY_0 = "image/belt.png"
 ROBOT_CARRY_0 = "image/belt_logis.png"

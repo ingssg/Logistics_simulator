@@ -37,6 +37,18 @@ CELL = "cell"
 
 ENTER = "enter"
 
+robotinfo = {"num": '0',
+             "destination": "null",
+             "power": '0',
+             "charging": "0"}
+
+roboClicked = "false"
+
+def registerRobotInfo(info):
+    global robotinfo, roboClicked
+    robotinfo = info
+    roboClicked = "true"
+
 
 class Simulator(QWidget):
     simulationFinished = Signal(SimulationReport)
@@ -98,6 +110,12 @@ class Simulator(QWidget):
         color5 = QColor(169, 169, 169)
         self.add_color_info(sideInfo_layout, color5, colorText(5))
 
+        print(robotinfo)
+        robonum = robotinfo["num"]
+        dest = robotinfo["destination"]
+        power = robotinfo["power"]
+        charging = robotinfo["charging"]
+        
         self.logisticsLabel = QLabel(f"Left : {self.logisticsLeft}")
         sideInfo_layout.addWidget(self.logisticsLabel)
 

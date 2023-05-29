@@ -138,6 +138,9 @@ class SimulationForm(QWidget):
             int(self.logistic_field.text()),
             self.speed.currentText(),
         )
+        # r = RobotInfo(
+            
+        # )
         self.simulator = Simulator(p)
         # self.simulator.simulationFinished.connect(self.terminate)
         self.simulator.show()

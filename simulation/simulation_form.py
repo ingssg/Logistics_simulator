@@ -38,7 +38,7 @@ class SimulationForm(QWidget):
         form_layout = QFormLayout(self)
 
         self.name_label = QLabel(self)
-        self.name_label.setText("Name")
+        self.name_label.setText("Simul ID")
         self.belt_label = QLabel(self)
         self.belt_label.setText("Belt Type")
         self.dump_label = QLabel(self)
@@ -138,6 +138,9 @@ class SimulationForm(QWidget):
             int(self.logistic_field.text()),
             self.speed.currentText(),
         )
+        # r = RobotInfo(
+            
+        # )
         self.simulator = Simulator(p)
         self.simulator.simulationFinished.connect(self.terminate)
         self.simulator.show()

@@ -6,13 +6,16 @@ from simulation.simulation_observer import SimulationReport
 projectinfo = {}
 runinfo = {}
 
+
 def registerProjectInfo(info):
     global projectinfo
     projectinfo = info
 
+
 def registerRunInfo(info):
     global runinfo
     runinfo = info
+
 
 class ResultTable(QTableWidget):
     def __init__(self, report: SimulationReport, parent=None):
@@ -32,24 +35,42 @@ class ResultTable(QTableWidget):
         self.save_button.move(205, 200)
         self.save_button.clicked.connect(lambda: self.save_data(report))
         self.save_button.setStyleSheet(
-            "color: rgb(82, 242, 226); background-color: rgb(86, 140, 140);border: 2px solid rgb(82, 242, 226); border-radius: 20px;")
+            "color: rgb(82, 242, 226); background-color: rgb(86, 140, 140);border: 2px solid rgb(82, 242, 226); border-radius: 20px;"
+        )
         self.setStyleSheet("background-color: rgb(255,255,255);")
         self.save_button.setFixedSize(120, 40)
-        
+
     def save_data(self, report: SimulationReport):
         pinfo = projectinfo
         rinfo = runinfo
-        table1_header = ['ProjectID', 'Distributor', 'Customer', 'CenterName']
-        table2_header = ['GridID', 'SimulID', 'Dump', 'Belt', 'Logistics']
-        table3_header = ['Throughput', 'Time', 'Errors']
-        
-        table1_data = [pinfo["PID"], pinfo["Distributor"], pinfo["Customer"], pinfo["CenterName"]]
-        table2_data = [pinfo["gridID"], str(report.name), rinfo["dump"], rinfo["belt"], rinfo["logis"]]
-        table3_data = [str(sum(r[1] for r in report.robots)), str(round(report.elapsed, 2)), str(report.errors)]
-        
-        filename, _ = QFileDialog.getSaveFileName(self, 'Save CSV File', '', 'CSV Files (*.csv)')
+        table1_header = ["ProjectID", "Distributor", "Customer", "CenterName"]
+        table2_header = ["GridID", "SimulID", "Dump", "Belt", "Logistics"]
+        table3_header = ["Throughput", "Time", "Errors"]
+
+        table1_data = [
+            pinfo["PID"],
+            pinfo["Distributor"],
+            pinfo["Customer"],
+            pinfo["CenterName"],
+        ]
+        table2_data = [
+            pinfo["gridID"],
+            str(report.name),
+            rinfo["dump"],
+            rinfo["belt"],
+            rinfo["logis"],
+        ]
+        table3_data = [
+            str(sum(r[1] for r in report.robots)),
+            str(round(report.elapsed, 2)),
+            str(report.errors),
+        ]
+
+        filename, _ = QFileDialog.getSaveFileName(
+            self, "Save CSV File", "", "CSV Files (*.csv)"
+        )
         if filename:
-            with open(filename, 'w', newline='') as csvfile:
+            with open(filename, "w", newline="") as csvfile:
                 writer = csv.writer(csvfile)
                 writer.writerow(["PROJECT INFO"])
                 writer.writerow(table1_header)

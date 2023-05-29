@@ -23,9 +23,9 @@ from simulator.pathfinding import registerMap
 
 conn = pymysql.connect(
     host="127.0.0.1",
-    port=3307,
+    port=3306,
     user="root",
-    password="dormammu",
+    password="root",
     db="lghpdb",
     charset="utf8",
     client_flag=CLIENT.MULTI_STATEMENTS,
@@ -70,7 +70,6 @@ form_second = resource_path("simul.ui")
 form_secondwindow = loadUiType(form_second)[0]
 
 
-
 class WindowClass(QMainWindow, form_class):
     def __init__(self):
         super().__init__()
@@ -99,7 +98,7 @@ class secondwindow(QDialog, QWidget, form_secondwindow):
         self.setGeometry(100, 50, 1000, 550)
         self.show()
         self.save.clicked.connect(self.btn_save)
-        
+
         ###   overview  tab ###
         # overview-1.map 파일 미리보기
         file = QFileDialog.getOpenFileName(
@@ -288,7 +287,7 @@ class secondwindow(QDialog, QWidget, form_secondwindow):
             "Distributor": self.distributor.text(),
             "Customer": self.customer.text(),
             "CenterName": self.centername.text(),
-            "gridID": file_name
+            "gridID": file_name,
         }
         registerProjectInfo(projectInfo)
 

@@ -146,13 +146,16 @@ def dijkstra(
             # cuz current route is longer
             continue
 
-        for neighbor, weight in edges[currNode]:
-            alt = currDist + weight
-            if alt < distances[neighbor]:
-                distances[neighbor] = alt
-                heapq.heappush(queue, (alt, neighbor))
+        try:
+            for neighbor, weight in edges[currNode]:
+                alt = currDist + weight
+                if alt < distances[neighbor]:
+                    distances[neighbor] = alt
+                    heapq.heappush(queue, (alt, neighbor))
 
-                prevs[neighbor] = currNode
+                    prevs[neighbor] = currNode
+        except KeyError:
+            print(f"keyerror edges[currNode] currNode {currNode}")
 
     return distances, prevs
 
@@ -175,7 +178,8 @@ def evaluateRoute(src: NodePos, dest: NodePos, tempBlocked: list[tuple[int, int]
         r = backTrack(prevs, src, dest)
         return r
     except:
-        print("hello")
+        # print(f"route none {src} to {dest}")
+        return
 
 
 def evaluateRouteToCell(src: NodePos, dest: tuple[int, int]):
@@ -189,4 +193,9 @@ def evaluateRouteToCell(src: NodePos, dest: tuple[int, int]):
         if tempdist < min[1]:
             min = (temp, tempdist)
 
-    return backTrack(prevs, src, min[0])
+    try:
+        r = backTrack(prevs, src, min[0])
+        return r
+    except:
+        # print(f"route none {src} to {dest}")
+        return

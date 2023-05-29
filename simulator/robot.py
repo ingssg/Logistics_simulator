@@ -11,10 +11,9 @@ from PySide6.QtCore import (
     QTimer,
     QVariantAnimation,
     Signal,
-    Slot,
 )
-from PIL import Image
-from PySide6.QtGui import QPainter, QPixmap, QColor, QFont
+
+from PySide6.QtGui import QColor, QFont, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QGraphicsObject,
     QStyleOptionGraphicsItem,
@@ -43,9 +42,17 @@ DEAD_THRESHOLD = 2
 class Robot(QGraphicsObject):
     _registry: dict[str, list[Robot]] = {}
     missionFinished = Signal(int, NodePos)
+    robotClicked = Signal(int)
 
     def __init__(
-        self, size: int, rNum: int, rType: int, position: NodePos, speed, simulName: str
+        self,
+        size: int,
+        rNum: int,
+        rType: int,
+        position: NodePos,
+        speed,
+        simulName: str,
+        initDest: NodePos,
     ):
         super().__init__()
         self.setPos(position.toViewPos().x, position.toViewPos().y)
@@ -53,12 +60,15 @@ class Robot(QGraphicsObject):
         self.setRotation(position.degree())
         self.setAcceptHoverEvents(True)
         self._registry[simulName].append(self)
-        self.simulName = simulName
 
+        self.simulName = simulName
         self.size = size
         self.speed = speed
-        self.robotType = rType
         self.robotNum = rNum
+        self.processCount = 0
+        self.power = 1000
+        self.box = 0
+        self.robotType = rType
         if rType == 0:
             self.pixmap_default = QPixmap(ROBOT_EMPTY_0).scaled(size, size)
             self.pixmap_box = QPixmap(ROBOT_CARRY_0).scaled(size, size)
@@ -67,18 +77,15 @@ class Robot(QGraphicsObject):
             self.pixmap_box = QPixmap(ROBOT_CARRY_1).scaled(size, size)
         self.pixmap_current = self.pixmap_default
 
-        self.stopped = True
         self.charging = False
-        self.processCount = 0
-        self.power = 10
-        self.box = 0
-        self.sequence = 0
-        self.route = [position]
-        self.priority = rNum
+        self.stopped = False
+        # if simulation finished, robot dont move
 
-        self.errors = 0
-        self.tempBlocks: list[tuple[int, int]] = []
-        # reset when moveoperation
+        self.dest: NodePos = initDest
+        self.currentPos: NodePos = position
+        self.operatingPos: NodePos = position
+        self.routeCache: list[NodePos] = []
+        self.waitCount = 0
 
     def boundingRect(self):
         return QRectF(0, 0, self.size, self.size)
@@ -90,21 +97,7 @@ class Robot(QGraphicsObject):
         painter.drawText(QPointF(60, 80), str(self.robotNum))
 
     def mousePressEvent(self, e):
-        from simulator.simulator import registerRobotInfo
-        print(f"Robot {self.robotNum}")
-        print(f"destination {self.route[-1]}")
-        print(f"charging {self.charging}")
-        print(f"power {self.power}")
-        print("current route")
-        print(self.route)
-        print("---")
-        robotinfo = {
-            "num": self.robotNum,
-            "destination": self.route[-1],
-            "power": self.power,
-            "charging": self.charging
-        }
-        registerRobotInfo(robotinfo)
+        self.robotClicked.emit(self.robotNum)
 
     def dumpPixmap(self, box: int):
         if box != 0:
@@ -115,27 +108,25 @@ class Robot(QGraphicsObject):
     def debug(self, msg: object):
         print(f"DEBUG Robot{self.robotNum}: {msg}")
 
-    def setRoute(self, route):
-        self.route = route
-        self.sequence = 0
-
-    def rotateOperation(self, degree: int, duration: int):
+    def rotateOperation(self, degree: int):
         self.stopped = False
         self.power -= 1
+
+        if self.currentPos.direction == 0 and degree == 270:
+            endValue = -90
+        else:
+            endValue = degree
 
         anim = QVariantAnimation(self)
         currRot = int(self.rotation())
         anim.setStartValue(currRot)
-        anim.setEndValue(currRot + degree)
-        anim.setDuration(duration)
+        anim.setEndValue(endValue)
+        anim.setDuration(self.speed)
         anim.setEasingCurve(QEasingCurve.Linear)
         anim.valueChanged.connect(self.setRotation)
-        anim.finished.connect(self.doNextOperation)
         anim.start(QAbstractAnimation.DeleteWhenStopped)
 
     def moveOperation(self, destination: QPoint):
-        # self.tempBlocks=[]
-
         self.stopped = False
         self.power -= 1
 
@@ -145,142 +136,122 @@ class Robot(QGraphicsObject):
         anim.setDuration(self.speed)
         anim.setEasingCurve(QEasingCurve.Linear)
         anim.valueChanged.connect(self.setPos)
-        anim.finished.connect(self.doNextOperation)
         anim.start(QAbstractAnimation.DeleteWhenStopped)
 
-    def dumpOperation(self, duration: int):
-        self.stopped = True
-        self.setRoute(self.route[-1:])
+    def doConveyOperation(self, nextPos: NodePos):
+        if nextPos == self.currentPos:
+            self.waitOperation()
+            return
 
-        self.processCount += 1
-        self.box = 0
-        self.dumpPixmap(self.box)
-
-        self.timer = QTimer(self)
-        self.timer.setSingleShot(True)
-        self.timer.timeout.connect(self.doNextOperation)
-        self.timer.start(duration)
-
-    def waitOperation(self, duration: int):
-        self.stopped = True
-
-        self.timer = QTimer(self)
-        self.timer.setSingleShot(True)
-        self.timer.timeout.connect(self.doNextOperation)
-        self.timer.start(duration)
-
-    def charge(self):
-        if self.power < 20:
-            self.charging = True
-            self.power += 1
-            self.timer = QTimer(self)
-            self.timer.setSingleShot(True)
-            self.timer.timeout.connect(self.charge)
-            self.timer.start(self.speed)
+        self.waitCount = 0
+        if (nextPos.degree() - self.currentPos.degree()) != 0:
+            self.rotateOperation(nextPos.degree())
         else:
-            self.charging = False
-            self.finishMission()
+            self.moveOperation(self.operatingPos.toViewPos().point())
 
-    def assignMission(self, route: list[NodePos], box: int = 0):
-        self.setRoute(route)
+    # def dumpOperation(self):
+    #     self.stopped = True
+    #     # self.setRoute(self.route[-1:])
+
+    #     self.processCount += 1
+    #     self.box = 0
+    #     self.dumpPixmap(self.box)
+
+    #     self.timer = QTimer(self)
+    #     self.timer.setSingleShot(True)
+    #     # self.timer.timeout.connect(self.doNextOperation)
+    #     self.timer.start(self.speed)
+
+    def waitOperation(self):
+        # self.stopped = True
+        self.waitCount += 1
+
+        self.timer = QTimer(self)
+        self.timer.setSingleShot(True)
+        # self.timer.timeout.connect(self.doNextOperation)
+        self.timer.start(self.speed)
+
+    # def charge(self):
+    #     if self.power < 20:
+    #         self.charging = True
+    #         self.power += 1
+    #         self.timer = QTimer(self)
+    #         self.timer.setSingleShot(True)
+    #         self.timer.timeout.connect(self.charge)
+    #         self.timer.start(self.speed)
+    #     else:
+    #         self.charging = False
+    #         self.finishMission()
+
+    def setDest(self, dest, box):
         self.box = box
         self.dumpPixmap(self.box)
 
-        self.priority = self.robotNum
+        self.dest = dest
+        self.routeCache = []
+        # self.doNextOperation()
 
-        self.doNextOperation()
+    # operation 뒤에 붙는 donextoperation 지우면 메인스레드에서 관리할수있음
+    # def doNextOperation(self):
+    #     self.currentPos = self.operatingPos
 
-    def finishMission(self):
-        if self.box:
-            self.dumpOperation(750)
-        else:
-            self.missionFinished.emit(self.robotNum, self.route[len(self.route) - 1])
+    #     if self.currentPos == self.dest:
+    #         self.finishMission()
+    #         return
 
-    def getCurrentPos(self):
-        if self.sequence == 0 or self.stopped:
-            return self.route[self.sequence]
-        return self.route[self.sequence - 1]
+    #     booked = []
+    #     for opRobot in self._registry[self.simulName]:
+    #         if opRobot.robotNum != self.robotNum:
+    #             booked.extend(
+    #                 [opRobot.currentPos.posTuple(), opRobot.operatingPos.posTuple()]
+    #             )
+    #     route = evaluateRoute(self.currentPos, self.dest, booked)
+    #     self.debug(booked)
+    #     self.debug(route)
+    #     if route is not None:
+    #         self.routeCache = route
+    #     else:
+    #         if self.routeCache:
+    #             curr = self.routeCache.index(self.currentPos)
+    #             self.currentPos = self.routeCache[curr]
+    #             self.operatingPos = self.routeCache[curr + 1]
 
-    def getOperatingPos(self):
-        if self.stopped:
-            return self.getCurrentPos()
-        return self.route[self.sequence]
+    #             if self.operatingPos in booked:
+    #                 self.waitOperation()
 
-    def priorThan(self, r: Robot):
-        if r.box > 0 and self.box == 0:
-            return False
-        elif r.charging:
-            return False
-        else:
-            return self.robotNum > r.robotNum
+    #                 return
 
-    """
-    일직선상에서 마주보는 로봇일때
-    """
+    #             if (
+    #                 degreeDiff := self.operatingPos.degree() - self.currentPos.degree()
+    #             ) != 0:
+    #                 self.rotateOperation(degreeDiff)
+    #                 return
+    #             else:
+    #                 self.moveOperation(self.operatingPos.toViewPos().point())
+    #                 return
 
-    def doNextOperation(self):
-        if self.sequence + 1 == len(self.route):
-            self.finishMission()
-            return
+    #         t, c = self.parent().findCell(self.currentPos)
 
-        if (
-            degreeDiff := self.route[self.sequence + 1].degree()
-            - self.route[self.sequence].degree()
-        ) != 0:
-            self.sequence += 1
-            self.rotateOperation(degreeDiff, self.speed)
-        else:
-            for opR in self._registry[self.simulName]:
-                # collision avoidance
-                selfnextop = self.route[self.sequence + 1]
-                opCurr = opR.getCurrentPos()
-                opOperate = opR.getOperatingPos()
-                if selfnextop.posTuple() in [
-                    opCurr.posTuple(),
-                    opOperate.posTuple(),
-                ]:
-                    # facing check
-                    if facingEach(selfnextop, opCurr) or facingEach(
-                        selfnextop, opOperate
-                    ):
-                        # priority check with facing opponent
-                        if self.priorThan(opR):
-                            self.waitOperation(self.speed)
-                            self.debug("wait when facing")
-                        else:
-                            # tempblocks
-                            # self.tempBlocks.append(self.route[self.sequence+1].posTuple())
-                            # newRoute = evaluateRoute(
-                            #     self.route[self.sequence],
-                            #     self.route[-1],
-                            #     self.tempBlocks,
-                            # )
-                            newRoute = evaluateRoute(
-                                self.route[self.sequence],
-                                self.route[-1],
-                                [self.route[self.sequence + 1].posTuple()],
-                            )
-                            if newRoute is None:
-                                self.debug("error cannot route1")
-                            else:
-                                self.debug("repathfind when facing")
-                                self.setRoute(newRoute)
-                                self.doNextOperation()
-                    # set new route against charging robot
-                    elif opR.charging:
-                        newRoute = evaluateRoute(
-                            self.route[self.sequence],
-                            self.route[-1],
-                            [self.route[self.sequence + 1].posTuple()],
-                        )
-                        if newRoute is None:
-                            self.debug("error cannot route2")
-                        else:
-                            self.setRoute(newRoute)
-                            self.doNextOperation()
-                    else:
-                        self.waitOperation(self.speed)
-                    return
+    #         if t == "buffer" or t == "workstation":
+    #             # can rotate if not aligned
+    #             # not now
+    #             self.waitOperation()
+    #         else:
+    #             self.debug(f"resolve curr {self.currentPos} dest {self.dest}")
+    #         return
 
-            self.sequence += 1
-            self.moveOperation(self.route[self.sequence].toViewPos().point())
+    #     currPos = route[0]
+    #     nextPos = route[1]
+    #     self.currentPos = currPos
+    #     self.operatingPos = nextPos
+
+    #     if (degreeDiff := self.operatingPos.degree() - self.currentPos.degree()) != 0:
+    #         self.rotateOperation(degreeDiff)
+    #     else:
+    #         self.moveOperation(nextPos.toViewPos().point())
+
+    # def finishMission(self):
+    #     if self.box:
+    #         self.dumpOperation()
+    #     else:
+    #         self.missionFinished.emit(self.robotNum, self.currentPos)

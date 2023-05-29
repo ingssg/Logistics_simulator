@@ -38,7 +38,7 @@ class SimulationForm(QWidget):
         form_layout = QFormLayout(self)
 
         self.name_label = QLabel(self)
-        self.name_label.setText("Simul ID")
+        self.name_label.setText("SImul ID")
         self.belt_label = QLabel(self)
         self.belt_label.setText("Belt Type")
         self.dump_label = QLabel(self)
@@ -125,7 +125,7 @@ class SimulationForm(QWidget):
         runinfo = {
             "belt": self.belt_field.text(),
             "dump": self.dump_field.text(),
-            "logis": self.logistic_field.text()
+            "logis": self.logistic_field.text(),
         }
         registerRunInfo(runinfo)
         if not self.isFormValid():
@@ -142,7 +142,7 @@ class SimulationForm(QWidget):
             
         # )
         self.simulator = Simulator(p)
-        self.simulator.simulationFinished.connect(self.terminate)
+        # self.simulator.simulationFinished.connect(self.terminate)
         self.simulator.show()
 
     def isFormValid(self) -> bool:
